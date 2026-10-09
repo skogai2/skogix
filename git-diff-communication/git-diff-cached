@@ -1,0 +1,205 @@
+diff --git c/.skogai/knowledge/decisions/0001-types.md i/.skogai/knowledge/decisions/0001-types.md
+index 0f93826..ea13731 100644
+--- c/.skogai/knowledge/decisions/0001-types.md
++++ i/.skogai/knowledge/decisions/0001-types.md
+@@ -1,7 +1,7 @@
+ ---
+ type: decision
+-title: title
+-description: description
++title: a decision is one typed file in decisions/
++description: defines the schema a decision file follows - frontmatter, body sections, numbering
+ tags: [decision,router,type]
+ status: stable
+ generated: { by: "user:skogix"}
+@@ -45,7 +45,54 @@ example: routes and relative links. for example i would like to @path/to/the/SPE
+ 
+ # decision
+ 
++A decision is one file in `.skogai/knowledge/decisions/`, typed `type:
++decision` in its frontmatter and numbered by filename (`000N-slug.md`).
++This entry is reflexive: decision 0001 is the definition of what a
++decision is, so every later decision file can point back to it instead
++of restating the rules.
++
++Frontmatter:
++
++- `type: decision` — marks the file in the type registry (the `# types`
++  section of `.skogai/ROUTES.md`).
++- `title` / `description` — short, human-facing summary.
++- `tags` — free-form, for lookup.
++- `status` — lifecycle of the decision itself (e.g. `stable`, `draft`,
++  `open`).
++- `generated: { by, at }` — who/what produced the file, and when.
++- `permalink` — a stable reference, independent of path.
++
++Body sections, in order, each optional once a decision is past draft:
++
++- `# proposal` — what's being proposed, and why.
++- `# context` — background, open sub-questions, things to discuss
++  separately.
++- `# decision` — what was actually decided.
++- `# consequences` — what the decision implies or rules out.
++- `# routes` — links to related decisions, by permalink (the exact
++  linking mechanism is itself an open sub-question — see "types and
++  functionality" above).
++
++Rules:
++
++1. One decision per file — don't fold multiple decisions into one
++   number.
++2. Numbers are never reused or renumbered once a file exists.
++3. A decision's `status` changes in place; it doesn't get a new number.
++4. Superseding an earlier decision means writing a new file and linking
++   back via `# routes`, not editing the old one's `# decision` section.
++
+ # consequences
+ 
++- Decisions live under `.skogai/`, following the dot-skogai bootstrap
++  convention, instead of at the repo root.
++- A flat, root-level `DECISIONS.md` (with a `### Dn`/`On`/`Tn` heading
++  scheme reverse-engineered from `projects/skogai-cli/docs/DECISIONS.md`)
++  existed briefly before this directory did. See
++  `0002-root-decisions-file.md` for what happened to it and to its first
++  entry, which asked this same question.
++
+ # routes
+ 
++- @0002-root-decisions-file.md
++
+diff --git c/.skogai/knowledge/decisions/0002-root-decisions-file.md i/.skogai/knowledge/decisions/0002-root-decisions-file.md
+new file mode 100644
+index 0000000..c29b87b
+--- /dev/null
++++ i/.skogai/knowledge/decisions/0002-root-decisions-file.md
+@@ -0,0 +1,51 @@
++---
++type: decision
++title: root DECISIONS.md routes into .skogai, it does not hold decisions
++description: resolves whether decisions live at the repo root or under .skogai/knowledge/decisions/
++tags: [decision,router]
++status: stable
++generated: { by: "user:skogix"}
++permalink: decision/0002-root-decisions-file
++---
++
++# proposal
++
++Before `.skogai/knowledge/decisions/` existed, a flat `DECISIONS.md` was
++drafted at the repo root, using a `### Dn`/`On`/`Tn` heading scheme
++reverse-engineered (via a herdr-dispatched agent in `projects/skogai-cli`)
++from that submodule's own `docs/DECISIONS.md`. Its first entry, D1, asked
++the same question `0001-types.md` in this directory answers: what a
++decision is.
++
++# context
++
++For a short time both existed side by side: the flat root file (its own
++schema, `Dn`/`On`/`Tn` IDs, no frontmatter) and this per-file,
++OKF-frontmatter directory (filename numbering, `type: decision`). Keeping
++both would mean maintaining two incompatible ID/status schemes and
++manually syncing whichever decisions got written into one but not the
++other — the "no external source of truth" problem, recreated inside this
++repo's own decision records.
++
++# decision
++
++`.skogai/knowledge/decisions/` is the one place decisions get recorded.
++Root `DECISIONS.md` is reduced to a router pointing at
++`.skogai/knowledge/DECISIONS.md`, the same pattern already used by
++`AGENTS.md -> @SKOGAI.md` at the repo root.
++
++# consequences
++
++- D1's content, translated into this schema, became decision 0001
++  (`0001-types.md`); its reflexive framing ("the first decision is the
++  definition of what a decision is") carries over unchanged.
++- Root `DECISIONS.md` has no decision content of its own going forward;
++  it only routes.
++- Per-project decision files elsewhere (e.g.
++  `projects/skogai-cli/docs/DECISIONS.md`) are untouched by this —
++  whether they migrate to this schema too is a separate, not-yet-made
++  decision.
++
++# routes
++
++- @0001-types.md
+diff --git c/DECISIONS.md i/DECISIONS.md
+index a7e61e6..844e281 100644
+--- c/DECISIONS.md
++++ i/DECISIONS.md
+@@ -1,67 +1,10 @@
+-# Decisions
++---
++type: router
++permalink: skogai/DECISIONS
++---
+ 
+-Status values:
+-- **Decided** — built and tested
+-- **Chosen** — picked, but cheap to change
+-- **Open** — needs a decision
+-- **TODO** — known work, not yet done
++<routes>
+ 
+-### D1. A decision is an entry in a file like this one, following the schema below. Status: Chosen
++- @.skogai/knowledge/DECISIONS.md
+ 
+-This is the global, monorepo-level decision record. D1 is reflexive: the
+-first decision is the definition of what a decision is, so every later
+-entry (here or in a per-project decisions file) can point back to D1
+-instead of restating the rules.
+-
+-*Why:* asked an agent sitting in `projects/skogai-cli` (via herdr) to
+-write down the rules, format, and schema it could find for a
+-`DECISION.md`-style file. It read `docs/DECISIONS.md` in that repo and
+-reverse-engineered the schema below from how that file is actually
+-written — the schema was never stated explicitly anywhere before this.
+-This entry promotes that reverse-engineered schema to the global level
+-and makes it the first decision on record.
+-
+-*Schema (as reported by the skogai-cli agent):*
+-
+-- **Grouping** — entries are grouped under thematic `##` headers (topical,
+-  not numeric ranges).
+-- **Entry ID scheme** — three independent, sequential prefixes, numbered
+-  continuously across the whole document (not reset per section):
+-  - `Dn` — a decision proper
+-  - `On` — an open question
+-  - `Tn` — known outstanding work/TODO
+-- **Entry heading format** — `### <ID>. <one-line statement of the
+-  decision>. Status: <Decided|Chosen|Open|TODO>`
+-- **Entry body** — a short paragraph stating what was decided/is open,
+-  followed by zero or more italic `*Label:*` lines, drawn from a small
+-  consistent vocabulary:
+-  - `*Why:*` — the rationale (Decided/Chosen); `*Why it is open:*` is the
+-    Open-entry variant
+-  - `*Code:*` — file(s)/function(s) that implement it, in backticks;
+-    sometimes trails with `Tests: ...` on the same line
+-  - `*Decide:*` — for Open entries, what specifically needs to be settled
+-    (used instead of Why/Code)
+-  - `*Caveat:*` / `*Gotcha:*` — a known wrinkle or failure mode
+-  - `*Open:*` — a residual sub-issue left even after the entry is
+-    otherwise decided
+-  - occasional one-off labels tied to that entry's specifics
+-
+-*Rules implied by usage:*
+-
+-1. One entry per decision — don't fold multiple decisions into one ID.
+-2. `*Code:*` is omitted when nothing is built yet.
+-3. Chosen entries may use a plain bullet list instead of prose +
+-   Why/Code — looser because they're cheap to revisit.
+-4. Open entries skip Why/Code in favor of `*Decide:*` — code can't
+-   justify a decision that hasn't been made.
+-5. IDs are never reused or renumbered — once assigned, permanent, even
+-   across prefix families.
+-6. Status changes (e.g. Open → Decided) update the entry in place rather
+-   than creating a new ID.
+-
+-### O1. Does this global file replace, or sit alongside, `projects/skogai-cli/docs/DECISIONS.md`? Status: Open
+-
+-*Decide:* whether every submodule keeps its own decisions file following
+-this same schema (this file then holding only decisions that are
+-genuinely cross-project/global), or whether this becomes the one place
+-decisions get recorded and per-project files fold into it.
++</routes>

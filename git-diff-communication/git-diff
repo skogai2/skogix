@@ -1,0 +1,92 @@
+diff --git i/.skogai/knowledge/decisions/0001-types.md w/.skogai/knowledge/decisions/0001-types.md
+index ea13731..3d4c7ee 100644
+--- i/.skogai/knowledge/decisions/0001-types.md
++++ w/.skogai/knowledge/decisions/0001-types.md
+@@ -46,41 +46,36 @@ example: routes and relative links. for example i would like to @path/to/the/SPE
+ # decision
+ 
+ A decision is one file in `.skogai/knowledge/decisions/`, typed `type:
++- a decision would better be described with its intentions. otherwise we would probably say something like "a knowledge file following the open knowledge format 0.2 with the type decision" and then define the rest below. maybe add another header such as "definitions or spec" which is the more technical things to take away from the decision?    
+ decision` in its frontmatter and numbered by filename (`000N-slug.md`).
++- should numbering be in the frontmatter instead? or at all?
+ This entry is reflexive: decision 0001 is the definition of what a
+ decision is, so every later decision file can point back to it instead
+ of restating the rules.
+ 
+ Frontmatter:
+ 
+-- `type: decision` — marks the file in the type registry (the `# types`
+-  section of `.skogai/ROUTES.md`).
+-- `title` / `description` — short, human-facing summary.
++- `type: decision`
++- `title` / `description` — short, free-form summary.
+ - `tags` — free-form, for lookup.
+ - `status` — lifecycle of the decision itself (e.g. `stable`, `draft`,
+   `open`).
++  - is this defined in the 0.2 spec or not?  
+ - `generated: { by, at }` — who/what produced the file, and when.
+-- `permalink` — a stable reference, independent of path.
+ 
+-Body sections, in order, each optional once a decision is past draft:
++Recommended body sections
+ 
+ - `# proposal` — what's being proposed, and why.
+ - `# context` — background, open sub-questions, things to discuss
+   separately.
+ - `# decision` — what was actually decided.
+ - `# consequences` — what the decision implies or rules out.
+-- `# routes` — links to related decisions, by permalink (the exact
+-  linking mechanism is itself an open sub-question — see "types and
+-  functionality" above).
+ 
+-Rules:
++Recommended rules and guidelines
+ 
+-1. One decision per file — don't fold multiple decisions into one
+-   number.
+-2. Numbers are never reused or renumbered once a file exists.
+-3. A decision's `status` changes in place; it doesn't get a new number.
+-4. Superseding an earlier decision means writing a new file and linking
+-   back via `# routes`, not editing the old one's `# decision` section.
++- One concept per file
++- Build upon the Open Knowledge Format 
++- Use *EITHER* a shared DECISIONS.md index file with summaries and links to the actual decisions themselves or implement a solution with index.md files via OFK
+ 
+ # consequences
+ 
+@@ -95,4 +90,9 @@ Rules:
+ # routes
+ 
+ - @0002-root-decisions-file.md
++- SPEC.md of the open knowledge format
+ 
++# discussion
++
++## superseding an earlier decision
++## one concept per file
+diff --git i/.skogai/knowledge/decisions/0002-root-decisions-file.md w/.skogai/knowledge/decisions/0002-root-decisions-file.md
+index c29b87b..89642bc 100644
+--- i/.skogai/knowledge/decisions/0002-root-decisions-file.md
++++ w/.skogai/knowledge/decisions/0002-root-decisions-file.md
+@@ -49,3 +49,5 @@ Root `DECISIONS.md` is reduced to a router pointing at
+ # routes
+ 
+ - @0001-types.md
++
++- this all should be discussed more and probably renamed/moved before becoming a proposal. it is all correct but simply to early.
+diff --git i/DECISIONS.md w/DECISIONS.md
+deleted file mode 100644
+index 844e281..0000000
+--- i/DECISIONS.md
++++ /dev/null
+@@ -1,10 +0,0 @@
+----
+-type: router
+-permalink: skogai/DECISIONS
+----
+-
+-<routes>
+-
+-- @.skogai/knowledge/DECISIONS.md
+-
+-</routes>
