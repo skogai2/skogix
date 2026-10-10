@@ -1,0 +1,10 @@
+---
+permalink: skogai-routing/claude
+type: router
+---
+
+<routes>
+
+- @SKOGAI.md
+
+</routes>
