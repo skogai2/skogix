@@ -475,15 +475,6 @@ For two-way relationships to work, you need a foundational anchor - either $self
     "content": "$ string",
     "created_at": "[@date:now]",
     "parent": "$ eid"
-  },
-  "git-example": {
-    "status": "[@git:\"status\"]"
-  },
-  "claude": {
-    "hello": "[@hello:\"Claude\"]"
-  },
-  "skogix": {
-    "notation": "[@cat:\"/home/skogix/skogai/docs/lore/skogix-notation.md\"]"
   }
 }
 ```
