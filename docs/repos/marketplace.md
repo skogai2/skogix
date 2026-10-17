@@ -33,8 +33,8 @@ separate, auto-updating clone, not this one.
 
 Active, in-progress; the plugin set has already been reworked at least
 once (`open-knowledge-plugin` was removed, then re-added as a
-submodule).[^survey] `plugins/code-docs-lookup/` and `plugins/openknowledge/`
-exist but aren't registered in `marketplace.json`.
+submodule).[^survey] As of 2026-10-17 `plugins/` holds only
+`skogai-core`; `code-docs-lookup` and `openknowledge/` are gone.
 
 # Workorder notes
 
@@ -49,8 +49,8 @@ exist but aren't registered in `marketplace.json`.
 
 # Open issues
 
-- `code-docs-lookup` and the stray `openknowledge/` skill aren't in
-  `marketplace.json` — publish, park, or remove?
+- Docs lookup (`code-docs-lookup`) is no longer in any plugin; the
+  vendored `docs/` has no consumer. Bring it back or drop the docs?
 - Two independent `open-knowledge-plugin` marketplace registrations exist
   on this machine; standardize on one?
 

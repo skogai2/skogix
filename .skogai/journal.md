@@ -50,3 +50,77 @@ Should I go ahead with both? Or for routing, would you rather keep it in `skogix
 - Bash: `cd /home/skogix; f=$(find skogai/.skogai skogai/docs -name '0006-start-without-routing*' 2>/dev/null | head -1); echo $f…`
 - Bash: `cd /home/skogix; cat skogai/tmp/okn-survey/sandbox-core/bundle/decisions/0006-start-without-routing-or-repos.md | head -…`
 
+## 2026-10-17 09:08 · turn 9d217961
+
+**User**
+
+> go ahead with first and the second should probably merge as best it  can with types etc in ~/skogai/dash-skogai with the type-setup etc.
+
+**Assistant**
+
+Both merges are written, but neither `.projects` folder is deleted: the auto-mode classifier blocked `rm`. Nothing is committed.
+
+**1. claude-docs → `skogix/docs/repos/`**
+- **`skogai-docs.md`**:
+  - Has a new **Gotchas** section from `HANDOVER.md`, including the unsolved plain-prompt Skill error.
+  - The location now says `~/.local/src/skogai-docs` is the only clone.
+  - Its source list now includes `HANDOVER.md`.
+- **`marketplace.md`**: corrected. `plugins/` only has `skogai-core` now, so docs lookup isn't live in any plugin. That's now listed there as an open issue.
+
+**2. routing → `~/skogai/dash-skogai`**
+- **`type/router.md`** (new, `status: draft`) brings the convention into the type layer:
+  - it says the frontmatter `type` names the root block (`router` names `<routes>`);
+  - it gives the entry format, when to use `@` versus a plain path, and the "no transitive bloat" rule;
+  - it sets `owns: [<name>/SKOGAI.md]`. It's also listed in `type/index.md`.
+- **`tmp/routing/`** holds the full skill copied as-is, plus a `README.md` saying what went where and noting the broken validator.
+- **`TODO.md`** has 7 new `router` items for things I couldn't settle myself:
+  - Decision 0006 says routing stays out of dash until the type layer works. Should `router` stay a draft or go back to `tmp/`?
+  - Who owns `CLAUDE.md`?
+  - Should "the frontmatter type names the root block" apply to every type?
+  - Permalinks versus refs.
+  - How to map the `lesson`/`workflow` schemas onto types.
+  - The validators versus "don't rebuild okn".
+  - Where the Claude Code references should live.
+- **`skogix/docs/repos/skogai-routing.md`** now has a note pointing to the new location.
+
+`mise run dash:check` reports the same 2 errors as before, both for `src/index.md`. I added nothing new there.
+
+**For you to run** (the routing folder is tracked in the `skogix` repo):
+```
+! rm -rf ~/skogix/.projects/claude-docs
+! git -C ~/skogix rm -r -q .projects/routing
+```
+
+Should I commit in both repos after that?
+
+**Actions**
+
+- Bash: `python3 - <<'EOF'`
+- Bash: `rtk git -C /home/skogix/skogai/dash-skogai log --oneline -10; rtk git -C /home/skogix/skogai/dash-skogai status --short`
+- Bash: `rtk find /home/skogix/skogai/dash-skogai -path '*/.git' -prune -o -path '*/node_modules' -prune -o -type f -print | head…`
+- Read `/home/skogix/skogai/dash-skogai/TODO.md`
+- Read `/home/skogix/skogai/dash-skogai/type/type.md`
+- Read `/home/skogix/skogai/dash-skogai/type/type.schema.json`
+- Read `/home/skogix/skogai/dash-skogai/type/index.md`
+- Read `/home/skogix/skogai/dash-skogai/SKOGAI.md`
+- Read `/home/skogix/skogai/dash-skogai/CLAUDE.md`
+- Read `/home/skogix/skogai/dash-skogai/type/rule.md`
+- Read `/home/skogix/skogai/dash-skogai/type/tool.md`
+- Read `/home/skogix/skogai/dash-skogai/type/spec.md`
+- Read `/home/skogix/skogai/dash-skogai/type/tool/okn.md`
+- Read `/home/skogix/skogai/dash-skogai/src/index.md`
+- Bash: `rtk ls -la /home/skogix/skogai/dash-skogai /home/skogix/skogai/dash-skogai/src; rtk grep -rn -i 'rout' /home/skogix/skog…`
+- Read `.projects/routing/schemas/document.schema.json`
+- Read `.projects/routing/schemas/frontmatter.schema.json`
+- Read `.projects/routing/schemas/lesson.schema.json`
+- Read `.projects/routing/schemas/workflow.schema.json`
+- Read `.projects/routing/references/dynamic-output-blocks.md`
+- Bash: `mkdir -p /home/skogix/skogai/dash-skogai/tmp/routing && cp -r /home/skogix/skogix/.projects/routing/SKILL.md /home/skogi…`
+- Write `/home/skogix/skogai/dash-skogai/type/router.md`
+- Write `/home/skogix/skogai/dash-skogai/tmp/routing/README.md`
+- Edit `/home/skogix/skogai/dash-skogai/type/index.md`
+- Edit `/home/skogix/skogai/dash-skogai/TODO.md`
+- Bash: `mise -C /home/skogix/skogai run dash:check 2>&1 | tail -20; git -C /home/skogix/skogai check-ignore -v dash-skogai/tmp/r…`
+- Bash: `rm -r /home/skogix/skogai/dash-skogai/tmp/routing/scripts/__pycache__ && rtk ls /home/skogix/skogai/dash-skogai/tmp/rout…`
+- Bash: `python3 - <<'EOF'`
+

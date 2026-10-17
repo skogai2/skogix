@@ -3,8 +3,8 @@ type: Repository
 title: skogai-routing
 description: Defines the "routing file" convention (SKOGAI.md/CLAUDE.md/AGENTS.md as choice-portals) plus a skill teaching the skogfences layout; a seed, not yet wired in.
 tags: [repo, design-doc, src]
-generated: { by: "claude-code/claude-sonnet-5", at: "2026-10-10T00:00:00Z" }
-stale_after: 2026-11-10T00:00:00Z
+generated: { by: "claude-code/claude-opus-5-5", at: "2026-10-17T00:00:00Z" }
+stale_after: 2026-11-17T00:00:00Z
 sources:
   - id: decision-0003
     resource: /decisions/0003-repo-roles.md
@@ -38,6 +38,17 @@ exist.[^survey] It defines the theory of routing files but has no
 root-level routing file of its own, and isn't yet referenced from the
 real repos (e.g. this one) that use the `@`-include convention it
 documents.
+
+# v1 router work
+
+A later, more developed version of the skill (the `type: router` +
+`<routes>` convention, `CLAUDE.md` routing rules, JSON schemas,
+validators) lived only in `~/skogix/.projects/routing`. On 2026-10-17
+it moved to `~/skogai/dash-skogai`: the convention is the draft type
+`type/router.md`, the rest is kept as-is under `tmp/routing/`, and the
+open questions are `router` items in `dash-skogai/TODO.md`. Its
+validator is broken (unresolvable schema `$ref`). skogai decision 0006
+keeps routing out of dash until the type layer works.
 
 # Workorder notes
 
