@@ -1,0 +1,19 @@
+# studio project configuration. See studio/docs/modes.md.
+
+schema_version: 1
+
+project:
+  name: <name>
+  phase: frame          # frame | shape | ground | plan | build | verify | land
+
+modes:
+  rigor: minimal        # minimal | standard | full
+  automation: collaborative   # collaborative | guided | autonomous
+  always_ask:           # prompts in every automation mode
+    - push
+    - delete
+    - outside-repo
+
+# Do NOT add review_mode, workflow, team.size or qa.level here. modes.rigor
+# fronts them; seeding one pins it and breaks the expansion. Override one only
+# deliberately, ideally per person in project.local.yaml (gitignored).
