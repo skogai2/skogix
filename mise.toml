@@ -1,0 +1,3 @@
+[env]
+SKOG_REPO_CLONE = "gh repo clone skogai2/skogix . -- --depth=1"
+SKOG_WIP = '!`git commit -m "."` && wt merge && echo hide and/or update git history and tracking'
