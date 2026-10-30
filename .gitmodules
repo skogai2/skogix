@@ -1,0 +1,9 @@
+[submodule "aube"]
+	path = .skogai/repos/aube
+	url = https://github.com/skogai2/aube.git
+[submodule "demand"]
+	path = .skogai/repos/demand
+	url = https://github.com/skogai2/demand.git
+[submodule "usage"]
+	path = .skogai/repos/usage
+	url = https://github.com/skogai2/usage.git
