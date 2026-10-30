@@ -1,0 +1,10 @@
+- [ ] explain the git-plugin overall
+- [ ] fish; learn some basics and simpler way to do all old workflows for alias,completion,functions etc
+- [ ] claude-setup;use "ctrl+s" example for perfect reason and goal for "claude-code-setup" project
+- [ ] claude-setup; a good example of an agent in this case; context7/docs
+- [ ] kitty; ctrl+shift+h/l for "circle the open panes"
+- [ ] !`atuin dotfiles alias set captain-deck 'herdr plugin action invoke open-captain-deck --plugin herdr-firstmate-flow'`
+- [ ] shell; tree for ai agents with .gitignore and similar functionality
+- [ ] mise; encryption for credential store to track dotfiles
+- [ ] the command `skogai module build --shell fish` either sets variables wrong or something is wrong with my man
+- [ ] quick history and background of skogai3.0
