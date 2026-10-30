@@ -3,7 +3,9 @@ exec env -i \
   HOME="$HOME" \
   USER="$USER" \
   LOGNAME="${LOGNAME:-$USER}" \
-  SHELL="${SHELL:-/bin/bash}" \
+  SHELL=/usr/bin/zsh \
+  CLAUDE_CODE_SHELL=/usr/bin/zsh \
+  ZDOTDIR=/skogai/claude/shell \
   TERM="${TERM:-xterm-256color}" \
   COLORTERM="${COLORTERM:-}" \
   LANG="${LANG:-C.UTF-8}" \

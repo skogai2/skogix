@@ -1,3 +1,6 @@
 *
 !.gitignore
 !settings.json
+!shell/
+shell/*
+!shell/.zshrc
