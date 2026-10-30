@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+exec env -i \
+  HOME="$HOME" \
+  USER="$USER" \
+  LOGNAME="${LOGNAME:-$USER}" \
+  SHELL="${SHELL:-/bin/bash}" \
+  TERM="${TERM:-xterm-256color}" \
+  COLORTERM="${COLORTERM:-}" \
+  LANG="${LANG:-C.UTF-8}" \
+  XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-}" \
+  WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-}" \
+  DISPLAY="${DISPLAY:-}" \
+  SSH_AUTH_SOCK="${SSH_AUTH_SOCK:-}" \
+  PATH="/usr/local/bin:/usr/bin" \
+  CLAUDE_CONFIG_DIR="/skogai/claude" \
+  "$HOME/.local/bin/claude" "$@"
