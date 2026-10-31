@@ -1,5 +1,18 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "syncClaudeAiSkills": false,
+  "env": {
+    "ENABLE_CLAUDEAI_MCP_SERVERS": "false",
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
+    "CLAUDE_CODE_DISABLE_POLICY_SKILLS": "1",
+    "CLAUDE_CODE_DISABLE_OFFICIAL_MARKETPLACE_AUTOINSTALL": "1"
+  },
+  "enabledPlugins": {
+    "code-docs-lookup@code-docs-tools": true,
+    "loadout@synced": false,
+    "skogai-core@synced": false,
+    "open-knowledge-plugin@synced": false
+  },
   "extraKnownMarketplaces": {
     "code-docs-tools": {
       "source": {
@@ -9,7 +22,95 @@
     }
   },
   "theme": "dark-daltonized",
-  "enabledPlugins": {
-    "code-docs-lookup@code-docs-tools": true
-  }
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "^(startup|resume|clear|compact|fork)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash '/home/skogix/.claude/hooks/herdr-agent-state.sh' session",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/home/skogix/.local/bin/collie beacon emit # collie-beacon v1",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/home/skogix/.local/bin/collie beacon emit # collie-beacon v1",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/home/skogix/.local/bin/collie beacon emit # collie-beacon v1",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/home/skogix/.local/bin/collie beacon emit # collie-beacon v1",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/home/skogix/.local/bin/collie beacon emit # collie-beacon v1",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  },
+  "worktree": {
+    "baseRef": "head"
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "/home/skogix/.config/herdr/plugins/github/herdr.collie-1edf0e1e987e/bin/collie beacon statusline d3QgbGlzdCBzdGF0dXNsaW5lIC0tZm9ybWF0PWNsYXVkZS1jb2Rl # collie-statusline v1"
+  },
+  "pluginConfigs": {
+    "cc-plugin-agents-md@builtin": {
+      "options": {
+        "instructionFiles": "claude-md-or-agents-md"
+      }
+    }
+  },
+  "timeFormat": "24-hour",
+  "skipDangerousModePermissionPrompt": true,
+  "editorMode": "vim",
+  "preferredNotifChannel": "auto",
+  "switchModelsOnFlag": true,
+  "teammateMode": "auto",
+  "remoteControlAtStartup": true,
+  "crossSessionInbound": "accept",
+  "inputNeededNotifEnabled": true,
+  "agentPushNotifEnabled": true
 }
