@@ -34,8 +34,23 @@ Claude answers Claude Code questions from the official docs, not from memory, an
 ## Run it
 
 ```sh
-tests/offline.sh && tests/environment.sh     # cheap; should pass
+tests/offline.sh && tests/environment.sh     # Claude Code cheap checks; should pass
+tests/offline-agy.sh                         # Antigravity offline checks; should pass
 tests/agent.sh                               # costs money (~$0.10); PROMPT=… to try another prompt
 ```
 
 Run outputs go to `/tmp/code-docs-lookup-runs/`. Each one holds a copy of the login in its config dir, so delete old runs.
+
+---
+
+# Antigravity Port: `agy-docs-lookup`
+
+## Goal
+Antigravity (`agy`) answers Antigravity IDE, CLI, SDK, and customization questions from the official docs at `https://antigravity.google/docs/`, not from memory, and cites only pages it read.
+
+## Architecture (`plugins/agy-docs-lookup`)
+
+1. **Docs cache (`scripts/sync-docs.sh`).** Fetches `https://antigravity.google/sitemap.xml`, extracts all `/docs/<slug>` entries (100 pages), downloads `https://antigravity.google/docs/<slug>.md` in parallel, injects `Source: https://antigravity.google/docs/<slug>` below the `# <Title>` line, and builds `index.txt` (`<slug>\t<title>`) + `synced-at.txt` in `~/.cache/agy-docs` (or `-c <dir>`). When running inside a network-isolated sandbox with a custom `-c <dir>`, seeds from `~/.cache/agy-docs` if available. *Verified:* `tests/offline-agy.sh` stage 01.
+2. **Lookup (`scripts/search-docs.sh`, `scripts/show-doc.sh`).** Same interface as `code-docs-lookup`: `search-docs.sh` matches all terms across cached `.md` files; `show-doc.sh` prints a page or headings (`-H`), accepts slugs or `https://antigravity.google/docs/...` URLs, and ends with `source: https://antigravity.google/docs/<slug>`. *Verified:* `tests/offline-agy.sh` stage 02.
+3. **CLI & settings reference (`tools/build-cli-reference.py`).** Parses `cli/reference.md` (`Configuration keys (settings.json)`, `Command-line flags`, and `Core slash commands` tables), resolves relative links to `https://antigravity.google/docs/...`, and writes `plugins/agy-docs-lookup/skills/agy-docs/references/cli-reference.md`. *Verified:* `tests/offline-agy.sh` stage 03.
+4. **Native Antigravity plugin (`plugin.json` + `skills/agy-docs/SKILL.md`).** Follows Antigravity's plugin format (root `plugin.json`, `assets/logo.svg`, and `skills/agy-docs/SKILL.md` which automatically exposes `/agy-docs`). Validates with `agy plugin validate --strict` (0 errors, 0 warnings) and installs cleanly via `agy plugin install`. *Verified:* `tests/offline-agy.sh` stages 04 and 05.

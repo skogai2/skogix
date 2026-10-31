@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+agy_bin="/usr/bin/agy"
+for candidate in \
+  "$HOME/.local/share/mise/installs/antigravity-cli/latest/agy" \
+  "$HOME/.local/share/mise/installs/antigravity-cli/latest/antigravity" \
+  "$HOME"/.local/share/mise/installs/antigravity-cli*/antigravity \
+  "$HOME/.local/bin/agy" \
+  /home/"${USER:-skogix}"/.local/share/mise/installs/antigravity-cli*/antigravity; do
+  if [[ -x "$candidate" ]]; then
+    agy_bin="$candidate"
+    break
+  fi
+done
+
+has_settings=0
+for arg in "$@"; do
+  case "$arg" in
+    --settings|--settings=*)
+      has_settings=1
+      break
+      ;;
+  esac
+done
+
+settings_args=()
+if [[ "$has_settings" -eq 0 ]]; then
+  settings_args=(--settings /skogai/agy/settings.json)
+fi
+
+exec env -i \
+  HOME="$HOME" \
+  USER="$USER" \
+  LOGNAME="${LOGNAME:-$USER}" \
+  SHELL=/usr/bin/zsh \
+  ZDOTDIR=/skogai/agy/shell \
+  BASH_ENV=/skogai/agy/shell/.bashrc \
+  TERM="${TERM:-xterm-256color}" \
+  COLORTERM="${COLORTERM:-}" \
+  TERM_PROGRAM="${TERM_PROGRAM:-}" \
+  TERM_PROGRAM_VERSION="${TERM_PROGRAM_VERSION:-}" \
+  LANG="${LANG:-C.UTF-8}" \
+  XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-}" \
+  WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-}" \
+  DISPLAY="${DISPLAY:-}" \
+  SSH_AUTH_SOCK="${SSH_AUTH_SOCK:-}" \
+  HERDR_ENV="${HERDR_ENV:-}" \
+  HERDR_PANE_ID="${HERDR_PANE_ID:-}" \
+  HERDR_SOCKET_PATH="${HERDR_SOCKET_PATH:-}" \
+  HERDR_TAB_ID="${HERDR_TAB_ID:-}" \
+  HERDR_WORKSPACE_ID="${HERDR_WORKSPACE_ID:-}" \
+  HERDR_BIN_PATH="${HERDR_BIN_PATH:-}" \
+  COLLIE_INSTANCE="${COLLIE_INSTANCE:-}" \
+  PATH="/usr/local/bin:/usr/bin" \
+  "$agy_bin" "${settings_args[@]}" "$@"

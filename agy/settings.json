@@ -1,0 +1,15 @@
+{
+  "agentMode": "auto",
+  "colorScheme": "colorblind-friendly dark",
+  "editorMode": "vim",
+  "enableTerminalSandbox": true,
+  "notifications": true,
+  "toolPermission": "proceed-in-sandbox",
+  "permissions": {
+    "allow": [
+      "command(/home/skogix/.local/bin/collie walky)",
+      "read_file(/home/skogix/.cache/agy-docs)",
+      "read_file(/home/skogix/.config)"
+    ]
+  }
+}

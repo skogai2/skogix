@@ -25,20 +25,20 @@
   "hooks": {
     "SessionStart": [
       {
-        "matcher": "^(startup|resume|clear|compact|fork)$",
         "hooks": [
           {
             "type": "command",
-            "command": "bash '/home/skogix/.claude/hooks/herdr-agent-state.sh' session",
+            "command": "/home/skogix/.local/bin/collie beacon emit # collie-beacon v1",
             "timeout": 10
           }
         ]
       },
       {
+        "matcher": "^(startup|resume|clear|compact|fork)$",
         "hooks": [
           {
             "type": "command",
-            "command": "/home/skogix/.local/bin/collie beacon emit # collie-beacon v1",
+            "command": "bash '/skogai/claude/hooks/herdr-agent-state.sh' session",
             "timeout": 10
           }
         ]

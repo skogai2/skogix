@@ -7,3 +7,6 @@ SKOGAI_CONFIG_DIR = "/skogai/config"
 
 [wrappers.claude]
 command = "/skogai/bin/claude"
+
+[wrappers.agy]
+command = "/skogai/bin/agy"

@@ -1,0 +1,8 @@
+{
+  "entries": [
+    {
+      "path": "plugins/skogdocs/plugins",
+      "include_only": ["agy-docs-lookup"]
+    }
+  ]
+}

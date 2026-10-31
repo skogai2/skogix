@@ -1,0 +1,25 @@
+{
+  "$schema": "https://antigravity.google/schemas/v1/plugin.json",
+  "name": "agy-docs-lookup",
+  "displayName": "Code Docs Lookup",
+  "version": "0.1.0",
+  "description": "Search, question and research the official Google Antigravity documentation from a local, offline-searchable copy.",
+  "logo": "assets/logo.svg",
+  "suggestedPrompts": [
+    "Which settings.json keys control the terminal sandbox and tool permissions?",
+    "How do PreToolUse and PreInvocation hooks work in hooks.json?",
+    "Compare workspace customization discovery for skills, rules, and plugins"
+  ],
+  "author": {
+    "name": "Emil Skogsund"
+  },
+  "homepage": "https://antigravity.google/docs",
+  "license": "MIT",
+  "keywords": [
+    "docs",
+    "documentation",
+    "reference",
+    "search",
+    "offline"
+  ]
+}
