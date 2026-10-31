@@ -10,9 +10,9 @@
 [submodule "hk"]
 	path = .skogai/repos/hk
 	url = https://github.com/skogai2/hk.git
-[submodule ".skogai/repos/hk"]
+[submodule "hk"]
 	path = .skogai/repos/hk
 	url = https://github.com/skogai2/hk.git
-[submodule ".skogai/repos/pitchfork"]
+[submodule "pitchfork"]
 	path = .skogai/repos/pitchfork
 	url = https://github.com/skogai2/pitchfork.git
