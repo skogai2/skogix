@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+codex_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+mkdir -p -- "$codex_root/workspace" "$codex_root/tmp" "$codex_root/state"
+
+# Keep HOME and the installed toolchain intact, while separating Codex state.
+export CODEX_HOME="$codex_root"
+export CODEX_SQLITE_HOME="$codex_root/state"
+export TMPDIR="$codex_root/tmp"
+
+if ! command -v codex >/dev/null 2>&1; then
+  printf '%s\n' 'codex is not on PATH; install Codex CLI before using this launcher.' >&2
+  exit 127
+fi
+
+cd -- "$codex_root/workspace"
+# Avoid connecting this baseline to an already-running shared app server.
+exec codex --no-daemon "$@"

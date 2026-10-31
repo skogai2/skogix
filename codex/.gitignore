@@ -1,0 +1,10 @@
+# Keep the baseline; ignore credentials, sessions, downloads and experiment output.
+/*
+!/.gitignore
+!/README.md
+!/AGENTS.md
+!/config.toml
+!/run
+!/workspace/
+/workspace/*
+!/workspace/.gitkeep

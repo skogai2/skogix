@@ -1,0 +1,9 @@
+# Local baseline. Model/provider defaults come from the installed Codex CLI.
+# This environment separates configuration; it is not a security boundary.
+approval_policy = "never"
+sandbox_mode = "danger-full-access"
+cli_auth_credentials_store = "file"
+
+[shell_environment_policy]
+inherit = "all"
+experimental_use_profile = false
