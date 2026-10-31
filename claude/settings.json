@@ -1,3 +1,15 @@
 {
-  "$schema": "https://json.schemastore.org/claude-code-settings.json"
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "extraKnownMarketplaces": {
+    "code-docs-tools": {
+      "source": {
+        "source": "directory",
+        "path": "/skogai/plugins/skogdocs"
+      }
+    }
+  },
+  "theme": "dark-daltonized",
+  "enabledPlugins": {
+    "code-docs-lookup@code-docs-tools": true
+  }
 }

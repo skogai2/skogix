@@ -2,6 +2,7 @@
 CLAUDE_CONFIG_DIR = "/skogai/claude"
 SKOG_REPO_CLONE = "gh repo clone skogai2/skogix . -- --depth=1"
 SKOG_WIP = '!`git commit -m "."` && wt merge && echo hide and/or update git history and tracking'
+SKOGAI_CLAUDE_CODE_DOCS_DIR = "claude/docs"
 
 [wrappers.claude]
 command = "/skogai/bin/claude"
