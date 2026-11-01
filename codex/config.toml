@@ -7,3 +7,13 @@ cli_auth_credentials_store = "file"
 [shell_environment_policy]
 inherit = "all"
 experimental_use_profile = false
+
+[tui]
+screen_reader_detection_done = true
+fullscreen_transcript = true
+
+[tui.model_availability_nux]
+"gpt-6.1-sol" = 1
+
+[projects."/skogai"]
+trust_level = "trusted"
