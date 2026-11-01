@@ -7,21 +7,6 @@
     "CLAUDE_CODE_DISABLE_POLICY_SKILLS": "1",
     "CLAUDE_CODE_DISABLE_OFFICIAL_MARKETPLACE_AUTOINSTALL": "1"
   },
-  "enabledPlugins": {
-    "code-docs-lookup@code-docs-tools": true,
-    "loadout@synced": false,
-    "skogai-core@synced": false,
-    "open-knowledge-plugin@synced": false
-  },
-  "extraKnownMarketplaces": {
-    "code-docs-tools": {
-      "source": {
-        "source": "directory",
-        "path": "/skogai/plugins/skogdocs"
-      }
-    }
-  },
-  "theme": "dark-daltonized",
   "hooks": {
     "SessionStart": [
       {
@@ -96,6 +81,26 @@
     "type": "command",
     "command": "/home/skogix/.config/herdr/plugins/github/herdr.collie-1edf0e1e987e/bin/collie beacon statusline d3QgbGlzdCBzdGF0dXNsaW5lIC0tZm9ybWF0PWNsYXVkZS1jb2Rl # collie-statusline v1"
   },
+  "enabledPlugins": {
+    "code-docs-lookup@code-docs-tools": true,
+    "loadout@synced": false,
+    "skogai-core@synced": false,
+    "open-knowledge-plugin@synced": false
+  },
+  "extraKnownMarketplaces": {
+    "code-docs-tools": {
+      "source": {
+        "source": "directory",
+        "path": "/skogai/plugins/skogdocs"
+      }
+    },
+    "vv-harness-marketplace": {
+      "source": {
+        "source": "directory",
+        "path": "/skogai/plugins/skogharness"
+      }
+    }
+  },
   "pluginConfigs": {
     "cc-plugin-agents-md@builtin": {
       "options": {
@@ -105,6 +110,7 @@
   },
   "timeFormat": "24-hour",
   "skipDangerousModePermissionPrompt": true,
+  "theme": "dark-daltonized",
   "editorMode": "vim",
   "preferredNotifChannel": "auto",
   "switchModelsOnFlag": true,
