@@ -10,9 +10,15 @@
 [submodule "hk"]
 	path = .skogai/repos/hk
 	url = https://github.com/skogai2/hk.git
-[submodule "hk"]
-	path = .skogai/repos/hk
-	url = https://github.com/skogai2/hk.git
 [submodule "pitchfork"]
 	path = .skogai/repos/pitchfork
 	url = https://github.com/skogai2/pitchfork.git
+[submodule "skogai-runner"]
+	path = .skogai/repos/skogai-runner
+	url = https://github.com/skogai2/skogai-runner.git]
+[submodule "skogai-routing"]
+	path = .skogai/repos/skogai-routing
+	url = https://github.com/skogai2/skogai-routing.git
+[submodule "skogmail"]
+	path = .skogai/repos/skogmail
+	url = https://github.com/skogai2/skogmail.git
