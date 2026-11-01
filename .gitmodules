@@ -22,3 +22,6 @@
 [submodule "skogmail"]
 	path = .skogai/repos/skogmail
 	url = https://github.com/skogai2/skogmail.git
+[submodule "plugins/skogharness"]
+	path = plugins/skogharness
+	url = https://github.com/skogai2/skogharness.git
