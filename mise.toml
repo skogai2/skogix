@@ -10,3 +10,8 @@ command = "/skogai/bin/claude"
 
 [wrappers.agy]
 command = "/skogai/bin/agy"
+
+[tools]
+shellcheck = "latest"
+shellharden = "latest"
+shfmt = "latest"
