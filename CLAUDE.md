@@ -21,7 +21,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **`.skogai/`** is the knowledge and notes area:
   - `decisions/`: numbered decision records in OKF format (YAML frontmatter with `type: Decision`, `status`, `generated`, `sources`). Several of them describe tooling that lives in the separate `skogai2/skogai` repo (`bin/wo`, `.skogai/workorders/`, wt/herdr orchestration), not in this repo.
   - `personal/`: skogix's own docs and stories. `personal/docs/definitions.md` and `user.md` explain skogix's vocabulary.
-  - `repos/`: git submodules (aube, demand, usage, hk, pitchfork). They aren't initialised by default (`git submodule update --init`). `.gitmodules` lists `hk` twice.
+  - `repos/`: git submodules (aube, demand, usage, hk, pitchfork, skogai-runner, skogai-routing). They aren't initialised by default (`git submodule update --init`). Every submodule uses its short name in `.gitmodules` (`skogai-runner`, not the path), and its gitdir lives at `.git/modules/<name>`. Add new ones with `git submodule add --name <short> <url> <path>`. Don't run `hk fix` on files inside a submodule: commit their changes in the submodule's own repo.
 - **`mise.md`** contains reference notes on `mise bootstrap` and dotfiles, not configuration.
 
 ## Commands

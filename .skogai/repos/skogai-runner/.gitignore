@@ -1,8 +1,0 @@
-/.skogai/tmp/
-/packaging/arch/src/
-/packaging/arch/pkg/
-/packaging/arch/skogai-runner/
-/packaging/arch/*.pkg.tar.*
-.harness/SESSION_INCOMPLETE
-.harness/features.json.lock
-.harness/last_gate.json
