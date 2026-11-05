@@ -13,7 +13,7 @@ set -euo pipefail
 # @cmd check each file, and the relationships between all of them
 # @arg file*                           Markdown files with frontmatter
 check() {
-    local tool file files=(${argc_file[@]+"${argc_file[@]}"})
+    local tool file files=("${argc_file[@]+"${argc_file[@]}"}")
     for tool in yq jq; do
         command -v "$tool" >/dev/null || { printf 'missing tool: %s\n' "$tool" >&2; return 1; }
     done

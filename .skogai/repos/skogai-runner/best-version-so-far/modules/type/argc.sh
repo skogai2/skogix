@@ -102,7 +102,7 @@ _instances() {
     [[ -d $SKOGAI_LOCAL_DIR ]] || return 0
     cd "$SKOGAI_LOCAL_DIR"
     # shellcheck disable=SC2231 # the glob is config, unquoted on purpose; IFS is empty
-    for f in $1; do
+    for f in "$1"; do
         [[ -f $f ]] && echo "$SKOGAI_LOCAL_DIR/$f"
     done
     return 0

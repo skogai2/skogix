@@ -9,7 +9,7 @@ set -e
 cmd1() {
     sleep 3
     echo cmd1 "$@"
-    echo argc_oa: $argc_oa
+    echo argc_oa: "$argc_oa"
     echo cmd1 stderr >&2
 }
 
@@ -17,7 +17,7 @@ cmd1() {
 cmd2() {
     sleep 3
     echo cmd2 "$@"
-    echo argc_oa: $argc_oa
+    echo argc_oa: "$argc_oa"
     echo cmd2 stderr >&2
 }
 

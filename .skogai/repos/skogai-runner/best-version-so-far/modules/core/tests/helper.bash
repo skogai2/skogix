@@ -11,7 +11,7 @@ skogai_setup() {
     # run --separate-stderr
     bats_require_minimum_version 1.5.0
     # config from the caller's env would shadow every layer
-    for v in $(compgen -e SKOGAI_); do
+    for v in "$(compgen -e SKOGAI_)"; do
         case "$v" in SKOGAI_BIN | SKOGAI_MODULE_PATH | SKOGAI_TEST_*) ;; *) unset "$v" ;; esac
     done
     export SKOGAI_SYSTEM_DIR="$BATS_TEST_TMPDIR/system"

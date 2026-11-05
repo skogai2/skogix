@@ -1396,7 +1396,7 @@ except Exception:
     pass
 PYEOF
 ) || FLIPPED=""
-    if [ -n "$FLIPPED" ]; then
+    if [ "$FLIPPED" != "" ]; then
         # Both interpolations below are bounded. The FULL_TAIL cap alone was not
         # enough: this id list comes from the staged features.json, so its length
         # is attacker-controlled too, and an oversized deny_json argv fails the
@@ -1424,7 +1424,7 @@ PYEOF
     fi
 fi
 
-if [ -n "$DENY_REASON" ]; then
+if [ "$DENY_REASON" != "" ]; then
     deny_json "$DENY_REASON"
 fi
 

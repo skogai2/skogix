@@ -206,12 +206,12 @@ PYEOF
 # metadata or subject should carry one), and increments correction_cycles
 # only on a green-to-red transition for a targeted feature.
 _reject_bookkeeping() {
-    if [ -z "$FEATURE_ID" ]; then
+    if [ "$FEATURE_ID" = "" ]; then
         echo "verify-task-quality: no feature_id in task metadata or subject;" \
              "skipping the correction_cycles update." >&2
     fi
     BASELINE=$(_gate_baseline "$@" || true)
-    if [ "$BASELINE" = "increment" ] && [ -n "$FEATURE_ID" ]; then
+    if [ "$BASELINE" = "increment" ] && [ "$FEATURE_ID" != "" ]; then
         increment_correction_cycles
     fi
 }
@@ -347,7 +347,7 @@ PYEOF
     PROOF_WARNING=$(printf '%s\n' "$_CHECKS" | sed -n '2p')
     IN_PROGRESS=$(printf '%s\n' "$_CHECKS" | sed -n '3p')
     TEST_FILE=$(printf '%s\n' "$_CHECKS" | sed -n '4p')
-    [ -n "$IN_PROGRESS" ] || IN_PROGRESS=0
+    [ "$IN_PROGRESS" != "" ] || IN_PROGRESS=0
 fi
 
 # Stage 1: Smoke test (fast compile/syntax check)
@@ -377,10 +377,10 @@ SMOKE_OUTPUT=$(bash .harness/init.sh smoke_test 2>&1) || {
 # baseline is never erased by mere ordering. Empty when there is no
 # targeted feature to key.
 FOCUSED_BASELINE_ARG=""
-if [ -n "$FEATURE_ID" ]; then
+if [ "$FEATURE_ID" != "" ]; then
     FOCUSED_BASELINE_ARG="focused:$FEATURE_ID=drop"
 fi
-if [ -n "$TEST_FILE" ]; then
+if [ "$TEST_FILE" != "" ]; then
     if grep -v '^[[:space:]]*#' .harness/init.sh 2>/dev/null | grep -q "focused_test"; then
         echo "Stage 2: Focused test ($TEST_FILE)..." >&2
         FOCUSED_RC=0
@@ -419,7 +419,7 @@ fi
 # numeric for the targeted feature -- the stage stopped existing, so its
 # old baseline must not linger.
 COVERAGE_BASELINE_ARG=""
-if [ -n "$FEATURE_ID" ]; then
+if [ "$FEATURE_ID" != "" ]; then
     COVERAGE_BASELINE_ARG="coverage:$FEATURE_ID=drop"
 fi
 COVERAGE_NOTE=""
@@ -431,12 +431,12 @@ elif [ "$COVERAGE_RESULT" = "unrecorded" ]; then
     # MUST stay above the generic non-empty branch below, which would otherwise
     # parse this marker as an achieved|target miss and reject the task.
     COVERAGE_NOTE="NOTE: $FEATURE_ID records no coverage, so the coverage gate did not run -- the target was not checked."
-elif [ -n "$COVERAGE_RESULT" ]; then
+elif [ "$COVERAGE_RESULT" != "" ]; then
     ACHIEVED="${COVERAGE_RESULT%%|*}"
     TARGET="${COVERAGE_RESULT##*|}"
     echo "Task rejected: coverage $ACHIEVED% is below the target $TARGET%." >&2
     _reject_bookkeeping "$SMOKE_KEY=pass" \
-        ${FOCUSED_BASELINE_ARG:+"$FOCUSED_BASELINE_ARG"} \
+        "${FOCUSED_BASELINE_ARG:+"$FOCUSED_BASELINE_ARG"}" \
         "coverage:$FEATURE_ID=fail"
     exit 2
 fi
@@ -445,8 +445,8 @@ fi
 # green-to-red attribution) and drop the keys of stages that turned out to
 # be unconfigured this run.
 _gate_baseline "$SMOKE_KEY=pass" \
-    ${FOCUSED_BASELINE_ARG:+"$FOCUSED_BASELINE_ARG"} \
-    ${COVERAGE_BASELINE_ARG:+"$COVERAGE_BASELINE_ARG"} >/dev/null || true
+    "${FOCUSED_BASELINE_ARG:+"$FOCUSED_BASELINE_ARG"}" \
+    "${COVERAGE_BASELINE_ARG:+"$COVERAGE_BASELINE_ARG"}" >/dev/null || true
 
 IN_PROGRESS_NOTE=""
 if [ "$IN_PROGRESS" -gt 0 ]; then
@@ -479,15 +479,15 @@ fi
 # ladder over two variables would.
 SYSTEM_MESSAGE=""
 for _NOTE in "$PROOF_WARNING" "$COVERAGE_NOTE" "$IN_PROGRESS_NOTE"; do
-    [ -n "$_NOTE" ] || continue
-    if [ -n "$SYSTEM_MESSAGE" ]; then
+    [ "$_NOTE" != "" ] || continue
+    if [ "$SYSTEM_MESSAGE" != "" ]; then
         SYSTEM_MESSAGE="$SYSTEM_MESSAGE"$'\n'"$_NOTE"
     else
         SYSTEM_MESSAGE="$_NOTE"
     fi
 done
 
-if [ -n "$SYSTEM_MESSAGE" ]; then
+if [ "$SYSTEM_MESSAGE" != "" ]; then
     python3 -c "
 import json
 import sys

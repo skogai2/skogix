@@ -201,7 +201,7 @@ module::test() {
         # the module under test is a source in its isolated repo, wherever it was found
         SKOGAI_MODULE_PATH="$(dirname "$dir"):$MODULE_PATH" \
             SKOGAI_TEST_MODULE="$name" SKOGAI_TEST_HELPER="$core/tests/helper.bash" \
-            bats ${argc_filter:+--filter "$argc_filter"} "${files[@]}" || rc=1
+            bats "${argc_filter:+--filter "$argc_filter"}" "${files[@]}" || rc=1
     done
     return "$rc"
 }
@@ -299,7 +299,7 @@ module::sandbox() {
     lines="$(sandboxed module build --to local --shell "$shell")"
     _sandbox_run "$dir" >"$dir/run"
     chmod +x "$dir/run"
-    for v in $(compgen -e SKOGAI_); do
+    for v in "$(compgen -e SKOGAI_)"; do
         case "$v" in SKOGAI_BIN | SKOGAI_MODULE_PATH | SKOGAI_SYSTEM_DIR | SKOGAI_CONFIG_DIR | SKOGAI_LOCAL_DIR) continue ;; esac
         if [[ $shell == fish ]]; then echo "set -e $v"; else echo "unset $v"; fi
     done

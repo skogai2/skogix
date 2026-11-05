@@ -50,7 +50,7 @@ print(one_line(identity.get('user_email', '')))
 EXPECTED_NAME=$(printf '%s\n' "$GIT_IDENTITY" | sed -n '1p')
 EXPECTED_EMAIL=$(printf '%s\n' "$GIT_IDENTITY" | sed -n '2p')
 
-if [ -z "$EXPECTED_NAME" ] || [ -z "$EXPECTED_EMAIL" ]; then
+if [ "$EXPECTED_NAME" = "" ] || [ "$EXPECTED_EMAIL" = "" ]; then
     exit 0
 fi
 

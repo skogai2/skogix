@@ -13,7 +13,7 @@ set -e
 TARGET=${1:-full_test}
 FOCUS_FILE="${2:-}"
 
-if [ "$TARGET" = "focused_test" ] && [ -z "$FOCUS_FILE" ]; then
+if [ "$TARGET" = "focused_test" ] && [ "$FOCUS_FILE" = "" ]; then
     echo "focused_test requires a test file argument" >&2
     exit 2
 fi

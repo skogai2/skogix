@@ -92,7 +92,7 @@ cd "$PROJECT_ROOT" 2>/dev/null || exit 0
 # file's documented environment-failure posture.
 GIT_DIR=$(git rev-parse --git-dir 2>/dev/null || true)
 GIT_COMMON_DIR=$(git rev-parse --git-common-dir 2>/dev/null || true)
-if [ -z "$GIT_DIR" ] || [ -z "$GIT_COMMON_DIR" ] || [ "$GIT_DIR" = "$GIT_COMMON_DIR" ]; then
+if [ "$GIT_DIR" = "" ] || [ "$GIT_COMMON_DIR" = "" ] || [ "$GIT_DIR" = "$GIT_COMMON_DIR" ]; then
     exit 0
 fi
 
@@ -276,7 +276,7 @@ if [ "$COMMAND_RC" -eq 1 ]; then
         "scope-violation:unsafe-command-extraction"
 fi
 
-if [ -n "$FILE_PATH" ]; then
+if [ "$FILE_PATH" != "" ]; then
     case "$FILE_PATH" in
         # .harness/harness.json added by F058: harness.json holds git identity
         # config, prep/stamp config, and (as of F054) commit-gate.sh's
@@ -309,7 +309,7 @@ if [ -n "$FILE_PATH" ]; then
     esac
 fi
 
-if [ -n "$COMMAND" ]; then
+if [ "$COMMAND" != "" ]; then
     # F096 (second adversarial review, 2026-08-05): $COMMAND used to be
     # passed to this analysis python3 process via argv (`python3 -
     # "$COMMAND" ...`, reading its own script from the same stdin the
@@ -1858,7 +1858,7 @@ main()
 PYEOF
     DENY_REASON=$(printf '%s' "$COMMAND" | python3 -c "$_SCOPE_ANALYSIS_PY" "$PROJECT_ROOT")
 
-    if [ -n "$DENY_REASON" ]; then
+    if [ "$DENY_REASON" != "" ]; then
         # F096: cap DENY_REASON before it reaches deny_json(), whose own
         # "reason" argument stays on argv (see that function's comment) --
         # the segment-analysis-failure message above quotes the offending
