@@ -82,22 +82,16 @@
     "command": "/home/skogix/.config/herdr/plugins/github/herdr.collie-1edf0e1e987e/bin/collie beacon statusline d3QgbGlzdCBzdGF0dXNsaW5lIC0tZm9ybWF0PWNsYXVkZS1jb2Rl # collie-statusline v1"
   },
   "enabledPlugins": {
-    "code-docs-lookup@code-docs-tools": true,
+    "code-docs-lookup@skogix": true,
     "loadout@synced": false,
     "skogai-core@synced": false,
     "open-knowledge-plugin@synced": false
   },
   "extraKnownMarketplaces": {
-    "code-docs-tools": {
+    "skogix": {
       "source": {
         "source": "directory",
-        "path": "/skogai/plugins/skogdocs"
-      }
-    },
-    "vv-harness-marketplace": {
-      "source": {
-        "source": "directory",
-        "path": "/skogai/plugins/skogharness"
+        "path": "/skogai"
       }
     }
   },
