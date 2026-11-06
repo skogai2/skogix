@@ -97,7 +97,7 @@
     "loadout@synced": false,
     "skogai-core@synced": false,
     "open-knowledge-plugin@synced": false,
-    "vv-harness@skogix": true
+    "vv-harness@skogai-marketplace": true
   },
   "extraKnownMarketplaces": {
     "skogix": {

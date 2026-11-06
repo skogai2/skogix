@@ -1,6 +1,6 @@
 {
   "name": "skogix",
-  "description": "skogix's Claude Code plugins: offline docs lookup and the VV harness.",
+  "description": "skogix's Claude Code plugins: offline docs lookup.",
   "owner": {
     "name": "Emil Skogsund"
   },
@@ -9,11 +9,6 @@
       "name": "code-docs-lookup",
       "source": "./plugins/skogdocs/plugins/code-docs-lookup",
       "description": "Search, question and research the official Claude Code docs from a local, offline-searchable copy."
-    },
-    {
-      "name": "vv-harness",
-      "source": "./plugins/skogharness",
-      "description": "VV Claude Code Harness: multi-session continuity, worktree-isolated parallel workflows, mechanical quality enforcement."
     }
   ]
 }

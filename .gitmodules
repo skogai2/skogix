@@ -13,9 +13,6 @@
 [submodule "pitchfork"]
 	path = .skogai/repos/pitchfork
 	url = https://github.com/skogai2/pitchfork.git
-[submodule "skogharness"]
-	path = plugins/skogharness
-	url = https://github.com/skogai2/skogharness.git
 [submodule "skogai-runner"]
 	path = .skogai/repos/skogai-runner
 	url = https://github.com/skogai2/skogai-runner.git
