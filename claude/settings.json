@@ -97,7 +97,7 @@
     "loadout@synced": false,
     "skogai-core@synced": false,
     "open-knowledge-plugin@synced": false,
-    "vv-harness@skogai-marketplace": true
+    "vv-harness@vv-harness-marketplace": true
   },
   "extraKnownMarketplaces": {
     "skogix": {
@@ -106,6 +106,12 @@
         "path": "/skogai"
       },
       "autoUpdate": true
+    },
+    "vv-harness-marketplace": {
+      "source": {
+        "source": "github",
+        "repo": "skogai2/skogharness"
+      }
     }
   },
   "pluginConfigs": {
