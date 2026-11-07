@@ -2,51 +2,36 @@
 
 nginx is the web server and reverse proxy in front of most Linux deployments. This sheet covers the directives you edit most, which block each one is allowed in, and the commands that test and reload a config safely.
 
-Last updated September 11, 2026
-
-On this page
-
-- [Test and Reload](#test-and-reload)
-- [Server Blocks](#server-blocks)
-- [Location Matching](#location-matching)
-- [Reverse Proxy](#reverse-proxy)
-- [Upstream](#upstream)
-- [root vs alias](#root-vs-alias)
-- [Redirects and Rewrites](#redirects-and-rewrites)
-- [SSL](#ssl)
-- [Gzip and Caching](#gzip-and-caching)
-- [map](#map)
-- [Variables](#variables)
-- [Includes and File Locations](#includes-and-file-locations)
-- [Logs and Error Pages](#logs-and-error-pages)
-- [Allow, Deny and Auth](#allow-deny-and-auth)
-- [Timeouts and Limits](#timeouts-and-limits)
-- [Stream](#stream)
-- [Global and Events](#global-and-events)
-- [Modules](#modules)
-- [Context Rules](#context-rules)
-- [Order and Inheritance](#order-and-inheritance)
-- [Gotchas](#gotchas)
-
 ## Test and Reload
 
 Never restart when a reload will do. Reload keeps existing connections open and falls back to the old config if the new one is broken.
 
-[TABLE]
+| Command | What it does |
+|---|---|
+| `sudo nginx -t` | Test configuration syntax and verify included files |
+| `sudo nginx -T` | Test configuration and print entire merged config to stdout |
+| `sudo nginx -s reload` | Reload configuration gracefully without dropping connections |
+| `sudo systemctl reload nginx` | Systemd reload command |
+| `nginx -v` | Print Nginx version |
+| `nginx -V` | Print Nginx version, compiler settings, and compiled modules |
 
 The safe edit loop, in one line:
 
-```
+```bash
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
-Copy
-
 ## Server Blocks
 
-One server block per site (virtual host). nginx picks the block by matching listen port, then server_name: exact name, longest \*. wildcard, first matching regex, then the default_server.
+One server block per site (virtual host). nginx picks the block by matching listen port, then server_name: exact name, longest *. wildcard, first matching regex, then the default_server.
 
-[TABLE]
+| Directive | Context | Description |
+|---|---|---|
+| `listen 80;` | `server` | Listen on port 80 for IPv4 traffic |
+| `listen [::]:80;` | `server` | Listen on port 80 for IPv6 traffic |
+| `server_name example.com www.example.com;` | `server` | Domain names handled by this server block |
+| `root /var/www/html;` | `server`, `location` | Document root directory on host filesystem |
+| `index index.html index.htm;` | `server`, `location` | Default files served for directory requests |
 
 A minimal static site:
 
@@ -64,8 +49,6 @@ server {
 }
 ```
 
-Copy
-
 The [nginx config generator](https://sshworkbench.com/tools/nginx-config-generator) builds a full server block from a form.
 
 ## Location Matching
@@ -76,12 +59,12 @@ File order does not decide prefix matches. nginx checks = first, then the longes
 |----|----|
 | location = /health | Exact URI only, checked first |
 | location ^~ /static/ | Prefix; if it is the longest prefix, skip regex checks |
-| location ~ \\php\$ | Regex, case-sensitive |
-| location ~\* \\(jpg\|png\|webp)\$ | Regex, case-insensitive |
+| location ~ \\php$ | Regex, case-sensitive |
+| location ~* \\(jpg\|png\|webp)$ | Regex, case-insensitive |
 | location /api/ | Plain prefix |
 | location / | Prefix that matches everything, the fallback |
-| try_files \$uri \$uri/ /index.php?\$args; | Serve the file, else the directory, else hand off |
-| try_files \$uri \$uri/ =404; | Serve the file or return 404 |
+| try_files $uri $uri/ /index.php?$args; | Serve the file, else the directory, else hand off |
+| try_files $uri $uri/ =404; | Serve the file or return 404 |
 
 ## Reverse Proxy
 
@@ -91,10 +74,10 @@ proxy_pass forwards requests to an app server. Pass the headers below or the app
 |----|----|
 | proxy_pass http://127.0.0.1:3000; | Forward to the app, URI passed through unchanged |
 | proxy_pass http://127.0.0.1:3000/; | Trailing slash: the location prefix is stripped first |
-| proxy_set_header Host \$host; | Give the app the original hostname |
-| proxy_set_header X-Real-IP \$remote_addr; | The visitor's IP |
-| proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for; | The full client IP chain |
-| proxy_set_header X-Forwarded-Proto \$scheme; | http or https, so the app builds correct URLs |
+| proxy_set_header Host $host; | Give the app the original hostname |
+| proxy_set_header X-Real-IP $remote_addr; | The visitor's IP |
+| proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; | The full client IP chain |
+| proxy_set_header X-Forwarded-Proto $scheme; | http or https, so the app builds correct URLs |
 | proxy_http_version 1.1; | Needed for websockets and upstream keepalive |
 | proxy_buffering off; | Stream responses through (SSE, long polling) |
 
@@ -112,8 +95,6 @@ location / {
     proxy_set_header Connection "upgrade";
 }
 ```
-
-Copy
 
 ## Upstream
 
@@ -139,8 +120,6 @@ upstream app {
 }
 ```
 
-Copy
-
 ## root vs alias
 
 root appends the full URI to the path; alias replaces the location prefix with the path.
@@ -153,9 +132,10 @@ location /img/ { alias /var/www/pics/; }
 # /img/a.png  ->  /var/www/pics/a.png
 ```
 
-Copy
-
-[TABLE]
+| Directive | Request URI | Configuration | Resulting Filesystem Path |
+|---|---|---|---|
+| `root` | `/img/logo.png` | `location /img/ { root /var/www; }` | `/var/www/img/logo.png` (appends full URI) |
+| `alias` | `/img/logo.png` | `location /img/ { alias /var/www/pics/; }` | `/var/www/pics/logo.png` (replaces `/img/` with path) |
 
 ## Redirects and Rewrites
 
@@ -163,12 +143,12 @@ For a plain redirect, return is simpler and faster than rewrite.
 
 | Directive | What it does |
 |----|----|
-| return 301 https://example.com\$request_uri; | Permanent redirect, keeps the path and query |
+| return 301 https://example.com$request_uri; | Permanent redirect, keeps the path and query |
 | return 302 /maintenance.html; | Temporary redirect |
 | return 404; | Answer with a status code, no redirect |
-| rewrite ^/old/(.\*)\$ /new/\$1 permanent; | Regex redirect with a captured path (301) |
-| rewrite ^/old/(.\*)\$ /new/\$1 redirect; | Same, temporary (302) |
-| rewrite ^/app\$ /app/index.html last; | Internal rewrite, re-runs location matching |
+| rewrite ^/old/(.*)$ /new/$1 permanent; | Regex redirect with a captured path (301) |
+| rewrite ^/old/(.*)$ /new/$1 redirect; | Same, temporary (302) |
+| rewrite ^/app$ /app/index.html last; | Internal rewrite, re-runs location matching |
 | rewrite ... break; | Internal rewrite, stays in the current location |
 
 The classic www and HTTP cleanup, as separate small server blocks:
@@ -189,11 +169,15 @@ server {
 }
 ```
 
-Copy
-
 ## SSL
 
-[TABLE]
+| Directive | Value Example | Description |
+|---|---|---|
+| `ssl_certificate` | `/etc/letsencrypt/live/site/fullchain.pem` | Path to public certificate chain |
+| `ssl_certificate_key` | `/etc/letsencrypt/live/site/privkey.pem` | Path to private key |
+| `ssl_protocols` | `TLSv1.2 TLSv1.3` | Supported TLS protocol versions |
+| `ssl_ciphers` | `HIGH:!aNULL:!MD5` | Allowed cryptographic cipher suites |
+| `ssl_session_cache` | `shared:SSL:10m` | Cache TLS sessions in shared memory |
 
 ```
 server {
@@ -209,13 +193,16 @@ server {
 }
 ```
 
-Copy
-
 Verify what a live server actually presents with the [SSL checker](https://sshworkbench.com/tools/ssl-checker), and inspect a cert file with the [certificate decoder](https://sshworkbench.com/tools/certificate-decoder).
 
 ## Gzip and Caching
 
-[TABLE]
+| Directive | Value Example | Description |
+|---|---|---|
+| `gzip` | `on;` | Enable Gzip compression |
+| `gzip_types` | `text/plain text/css application/json;` | MIME types to compress |
+| `expires` | `30d;` | Set HTTP `Expires` and `Cache-Control: max-age` |
+| `add_header` | `Cache-Control "public, no-transform";` | Set custom caching header |
 
 Long cache for fingerprinted static assets:
 
@@ -225,8 +212,6 @@ location ~* \.(css|js|png|jpg|svg|woff2)$ {
     add_header Cache-Control "public, immutable";
 }
 ```
-
-Copy
 
 ## map
 
@@ -246,23 +231,42 @@ map $host $backend {
 }
 ```
 
-Copy
-
-[TABLE]
+| Directive | Syntax | Purpose |
+|---|---|---|
+| `map` | `map $variable $new_variable { ... }` | Create dynamic variable mappings based on input |
+| WebSocket | `map $http_upgrade $connection_upgrade { default upgrade; '' close; }` | Standard mapping for WebSocket proxying |
 
 ## Variables
 
-Variables are read anywhere a directive takes a value, and any request header is available as \$http\_\<name\> with dashes turned into underscores.
+Variables are read anywhere a directive takes a value, and any request header is available as $http\_<name> with dashes turned into underscores.
 
-[TABLE]
+| Variable | Description |
+|---|---|
+| `$host` | Hostname from request header or server name |
+| `$uri` | Normalized request URI without query parameters |
+| `$request_uri` | Raw full original request URI including query string |
+| `$args` | Query string arguments |
+| `$remote_addr` | Client IP address |
+| `$status` | HTTP response status code |
+| `$http_NAME` | Value of arbitrary request header (e.g. `$http_user_agent`) |
 
 ## Includes and File Locations
 
-[TABLE]
+| Path | Purpose |
+|---|---|
+| `/etc/nginx/nginx.conf` | Main Nginx server configuration file |
+| `/etc/nginx/conf.d/*.conf` | Standard directory for modular server block configs |
+| `/etc/nginx/sites-available/` | Debian/Ubuntu pool of available site configurations |
+| `/etc/nginx/sites-enabled/` | Symlinks to active site configurations |
+| `/var/log/nginx/` | Standard log directory (`access.log`, `error.log`) |
 
 ## Logs and Error Pages
 
-[TABLE]
+| Directive | Example | Description |
+|---|---|---|
+| `access_log` | `/var/log/nginx/access.log combined;` | Path and format for access logs |
+| `error_log` | `/var/log/nginx/error.log warn;` | Path and severity level for error logs |
+| `error_page` | `404 /404.html;` | Custom HTML page for specified HTTP status |
 
 Startup failures land in the systemd journal rather than the error log; see the [journalctl cheat sheet](https://sshworkbench.com/cheatsheets/journalctl) for journalctl -u nginx.
 
@@ -289,13 +293,17 @@ location /admin/ {
 }
 ```
 
-Copy
-
 Generate the password file with the [htpasswd generator](https://sshworkbench.com/tools/htpasswd-generator).
 
 ## Timeouts and Limits
 
-[TABLE]
+| Directive | Default | Description |
+|---|---|---|
+| `client_max_body_size` | `1m` | Maximum allowed size of client request body (file upload) |
+| `client_body_timeout` | `60s` | Maximum time between consecutive body read operations |
+| `proxy_connect_timeout` | `60s` | Timeout for establishing connection with upstream |
+| `proxy_read_timeout` | `60s` | Timeout for reading response from upstream backend |
+| `keepalive_timeout` | `75s` | Maximum time an idle keepalive connection stays open |
 
 ## Stream
 
@@ -314,82 +322,58 @@ stream {
 }
 ```
 
-Copy
-
-[TABLE]
+| Directive | Context | Description |
+|---|---|---|
+| `stream { ... }` | Root | Top-level block for TCP/UDP layer 4 reverse proxying |
+| `listen 3306;` | `server` | Listen on raw TCP port (e.g. MySQL proxy) |
+| `proxy_pass db_backend;` | `server` | Forward TCP/UDP traffic to upstream cluster |
 
 ## Global and Events
 
 The top of /etc/nginx/nginx.conf, outside every block. Simple directives here end in a semicolon; block directives take braces and no semicolon.
 
-[TABLE]
+| Directive | Value Example | Description |
+|---|---|---|
+| `worker_processes` | `auto;` | Number of worker processes (set to CPU core count) |
+| `worker_connections` | `1024;` | Max simultaneous connections per worker process |
+| `user` | `www-data;` | System user that worker processes run as |
 
 ## Modules
 
-nginx: \[emerg\] unknown directive means nginx does not recognize the name at all. Either it is misspelled, or the module that provides it was never built into this binary or loaded.
+nginx: [emerg] unknown directive means nginx does not recognize the name at all. Either it is misspelled, or the module that provides it was never built into this binary or loaded.
 
-[TABLE]
+| Directive / Tool | Description |
+|---|---|
+| `load_module modules/ngx_http_geoip2_module.so;` | Dynamically load shared object module |
+| `nginx -V` | Inspect configure arguments to see built-in static modules |
 
 ## Context Rules
 
 Every directive is valid only in certain blocks; using the right directive in the wrong block is the "directive is not allowed here" error. Files under conf.d/ and sites-enabled/ are included inside http, so they can hold server, upstream, and map blocks.
 
-[TABLE]
+| Context | Nesting Hierarchy | Permitted Directives |
+|---|---|---|
+| `main` | Global config level | `worker_processes`, `error_log`, `events`, `http`, `stream` |
+| `events` | Inside `main` | `worker_connections` |
+| `http` | Inside `main` | `server`, `upstream`, `gzip`, `client_max_body_size` |
+| `server` | Inside `http` | `listen`, `server_name`, `location`, `ssl_certificate` |
+| `location` | Inside `server` | `root`, `proxy_pass`, `try_files`, `rewrite` |
 
 ## Order and Inheritance
 
-[TABLE]
+| Directive Type | Inheritance Rule |
+|---|---|
+| Standard (`root`, `access_log`) | Inherited downwards from `http` -> `server` -> `location` |
+| Array (`add_header`) | Overwritten completely if redefined in a child context |
 
 ## Gotchas
 
-- The trailing slash on
-  proxy_pass
-  changes the URI: with a URI part (
-  http://app/
-  ), the matched location prefix is stripped; without one (
-  http://app
-  ), the path passes through untouched.
-- add_header
-  in a location throws away every
-  add_header
-  inherited from
-  server
-  and
-  http
-  . Repeat the parents' headers or set them all at one level.
-- Prefer
-  map
-  and
-  return
-  over
-  if
-  . Inside a location,
-  if
-  combined with anything beyond
-  return
-  or
-  rewrite
-  behaves in famously surprising ways.
-- If no block has
-  default_server
-  , the first server block for that port silently answers every unmatched hostname, including raw IP requests.
-- When
-  root
-  seems to do nothing, check which server block actually answered (
-  nginx -T
-  ), whether the
-  root
-  sits in a location the request never matched, and whether the worker user can traverse every parent directory. The error log prints the exact path nginx tried to open.
-- error_page
-  ignores statuses that came from a backend until you add
-  proxy_intercept_errors on;
-  , and the page it points at must be servable by the same server block.
-
-### Config changes without the white knuckles
-
-SSH Workbench lets you browse and edit configs, tail logs, and restart the service from one place over plain SSH, so a reload never means six terminal tabs.
-
-[Try free for 7 days](https://sshworkbench.com/#install)
+- The trailing slash on proxy_pass changes the URI: with a URI part ( http://app/), the matched location prefix is stripped; without one ( http://app), the path passes through untouched.
+- add_header in a location throws away every add_header inherited from server and http. Repeat the parents' headers or set them all at one level.
+- Prefer map and return over if. Inside a location, if combined with anything beyond return or rewrite behaves in famously surprising ways.
+- If no block has default_server, the first server block for that port silently answers every unmatched hostname, including raw IP requests.
+- When root seems to do nothing, check which server block actually answered ( nginx -T), whether the root sits in a location the request never matched, and whether the worker user can traverse every parent directory. The error log prints the exact path nginx tried to open.
+- error_page ignores statuses that came from a backend until you add proxy_intercept_errors on;, and the page it points at must be servable by the same server block.
 
 ## nginx FAQ
 
@@ -403,15 +387,15 @@ The directive is real but sits in the wrong block. Every directive is valid only
 
 ### What does nginx unknown directive mean?
 
-Unknown directive means nginx does not recognize the name at all, so the module that provides it is not in this build. It is the usual answer for stream, brotli, rtmp, geoip2, and the lua directives. Run nginx -V to see what was compiled in. On Debian and Ubuntu the extras ship as separate packages (apt install libnginx-mod-stream, libnginx-mod-http-geoip2) that drop a load_module line into /etc/nginx/modules-enabled/; on RHEL and Fedora they are the nginx-mod-\* packages. If the name is misspelled or the module is third-party, no package will help and you need a build that includes it.
+Unknown directive means nginx does not recognize the name at all, so the module that provides it is not in this build. It is the usual answer for stream, brotli, rtmp, geoip2, and the lua directives. Run nginx -V to see what was compiled in. On Debian and Ubuntu the extras ship as separate packages (apt install libnginx-mod-stream, libnginx-mod-http-geoip2) that drop a load_module line into /etc/nginx/modules-enabled/; on RHEL and Fedora they are the nginx-mod-* packages. If the name is misspelled or the module is third-party, no package will help and you need a build that includes it.
 
 ### What order does nginx apply directives in?
 
-File order rarely decides anything. For locations, nginx checks = first, then the longest matching prefix, then regex locations (~ and ~~\*) in file order, taking the first hit; only when no regex matches does the longest prefix win, and a ^~~ on that prefix skips the regex step. server_name matching goes exact name, then *.example.com, then example.*, then regex, then default_server. Inside a block, allow and deny are read top to bottom with first match winning, and rewrite rules all run in sequence.
+File order rarely decides anything. For locations, nginx checks = first, then the longest matching prefix, then regex locations (~ and ~~*) in file order, taking the first hit; only when no regex matches does the longest prefix win, and a ^~~ on that prefix skips the regex step. server_name matching goes exact name, then *.example.com, then example.*, then regex, then default_server. Inside a block, allow and deny are read top to bottom with first match winning, and rewrite rules all run in sequence.
 
 ### Why is the nginx root directive not working?
 
 Three things cause almost all of it. root appends the whole request URI to the path while alias replaces the matched location prefix, so location /img/ { root /var/www; } reads /var/www/img/a.png and the same location with alias /var/www/pics/ reads /var/www/pics/a.png. A root set inside one location does not apply to requests that matched a different location, so set it once at server level. And the worker user (www-data or nginx) needs execute permission on every parent directory, not just the files. nginx -T shows the root nginx actually ended up with, and the error log prints the full path it tried to open.
 
 ---
-Källa: https://sshworkbench.com/cheatsheets/nginx
+Source: https://sshworkbench.com/cheatsheets/nginx

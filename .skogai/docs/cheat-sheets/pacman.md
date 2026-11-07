@@ -2,31 +2,6 @@
 
 pacman is the package manager on Arch Linux and its derivatives: Manjaro, EndeavourOS, CachyOS, and the MSYS2 environment on Windows. This pacman commands cheat sheet covers the flag combinations that do the daily work, from -Syu to orphan cleanup and downgrades, plus the errors and the traps that break Arch systems.
 
-Last updated September 11, 2026
-
-On this page
-
-- [Update the System](#update-the-system)
-- [Install Packages](#install-packages)
-- [Remove Packages](#remove-packages)
-- [Search Packages](#search-packages)
-- [Package Info](#package-info)
-- [List Installed Packages](#list-installed-packages)
-- [Clean the Cache](#clean-the-cache)
-- [Downgrade a Package](#downgrade-a-package)
-- [Force and Overwrite](#force-and-overwrite)
-- [Skip Prompts](#skip-prompts)
-- [Keyring](#keyring)
-- [Mirrors](#mirrors)
-- [pacman.conf](#pacmanconf)
-- [The AUR](#the-aur)
-- [yay and paru](#yay-and-paru)
-- [History and Logs](#history-and-logs)
-- [Flags Explained](#flags-explained)
-- [Common pacman Errors](#common-pacman-errors)
-- [pacman, apt and dnf](#pacman-apt-and-dnf)
-- [Gotchas](#gotchas)
-
 ## Update the System
 
 pacman -Syu syncs the package databases and upgrades everything in one transaction. Never run pacman -Sy on its own and install something afterwards: new packages against old databases is a partial upgrade, and partial upgrades break Arch systems.
@@ -41,7 +16,14 @@ pacman -Syu syncs the package databases and upgrades everything in one transacti
 
 ## Install Packages
 
-[TABLE]
+| Command | What it does |
+|---|---|
+| `sudo pacman -S nginx` | Install package from repositories |
+| `sudo pacman -S --needed nginx` | Install package only if not already up to date |
+| `sudo pacman -U ./package.pkg.tar.zst` | Install local or downloaded package archive |
+| `sudo pacman -R nginx` | Remove package, keeping its configuration and dependencies |
+| `sudo pacman -Rs nginx` | Remove package and its dependencies not required by others |
+| `sudo pacman -Rns nginx` | Remove package, unneeded dependencies, and global configuration files |
 
 ## Remove Packages
 
@@ -55,15 +37,20 @@ pacman -Syu syncs the package databases and upgrades everything in one transacti
 
 Remove every orphan in one go:
 
-```
+```bash
 pacman -Qdtq | sudo pacman -Rns -
 ```
 
-Copy
-
 ## Search Packages
 
-[TABLE]
+| Command | What it does |
+|---|---|
+| `pacman -Ss nginx` | Search remote repositories for package name or description |
+| `pacman -Qs nginx` | Search locally installed packages |
+| `pacman -Si nginx` | Display detailed information about a remote repository package |
+| `pacman -Qi nginx` | Display detailed information about an installed package |
+| `pacman -Ql nginx` | List all files installed by a package |
+| `pacman -Qo /usr/bin/nginx` | Identify which package owns a specific file |
 
 ## Package Info
 
@@ -101,7 +88,11 @@ Every downloaded package stays in /var/cache/pacman/pkg until you clean it.
 
 pacman has no rollback. You go back by installing an older package file, from your cache or from the Arch Linux Archive.
 
-[TABLE]
+| Command | What it does |
+|---|---|
+| `sudo pacman -U /var/cache/pacman/pkg/pkg-1.0-1-x86_64.pkg.tar.zst` | Install older version from pacman's local package cache |
+| `sudo pacman -U https://archive.archlinux.org/packages/...` | Install directly from Arch Linux Archive |
+| `sudo downgrade nginx` | Interactive downgrade utility (from AUR package `downgrade`) |
 
 The next pacman -Syu pulls the new version straight back. Hold it with IgnorePkg = nginx in /etc/pacman.conf until the upstream bug is fixed, and treat that hold as temporary: a pinned package whose dependencies keep moving is a partial upgrade waiting to happen.
 
@@ -112,17 +103,15 @@ There is no --force any more; it was split into narrower flags. Use them when yo
 | Command | What it does |
 |----|----|
 | sudo pacman -S nginx | Reinstall a package that is already installed, restoring deleted files |
-| sudo pacman -S --overwrite '/usr/lib/foo/\*' nginx | Install over untracked files, for the exact paths the error named |
+| sudo pacman -S --overwrite '/usr/lib/foo/*' nginx | Install over untracked files, for the exact paths the error named |
 | sudo pacman -Rdd nginx | Remove without dependency checks, leaving whatever needed it broken |
-| sudo pacman -Syu --overwrite '\*' | Last resort; ignores every file conflict on the system |
+| sudo pacman -Syu --overwrite '*' | Last resort; ignores every file conflict on the system |
 
 Reinstall every native package, after a half-finished upgrade or a mangled /usr:
 
-```
+```bash
 sudo pacman -S $(pacman -Qnq)
 ```
-
-Copy
 
 ## Skip Prompts
 
@@ -146,30 +135,32 @@ Copy
 
 When the keyring itself is broken and signatures still fail, rebuild it from scratch:
 
-```
+```bash
 sudo rm -r /etc/pacman.d/gnupg
 sudo pacman-key --init
 sudo pacman-key --populate archlinux
 sudo pacman -Sy archlinux-keyring
 ```
 
-Copy
-
 ## Mirrors
 
 Mirrors live in /etc/pacman.d/mirrorlist and are tried top to bottom. reflector (sudo pacman -S reflector) ranks and rewrites the list; after changing mirrors, run pacman -Syyu.
 
-```
+```bash
 sudo reflector --latest 20 --protocol https --sort rate --save /etc/pacman.d/mirrorlist
 ```
-
-Copy
 
 ## pacman.conf
 
 /etc/pacman.conf holds the repositories and pacman's behaviour.
 
-[TABLE]
+| Directive | Location | What it does |
+|---|---|---|
+| `Color` | `[options]` | Enable colored terminal output |
+| `ParallelDownloads = 5` | `[options]` | Download multiple packages concurrently |
+| `ILoveCandy` | `[options]` | Easter egg: transforms progress bar into Pac-Man |
+| `IgnorePkg = linux linux-headers` | `[options]` | Prevent specified packages from being upgraded |
+| `[multilib]` | Repositories | Enable 32-bit software repository (Wine, Steam) |
 
 Enabling multilib means uncommenting both lines, then refreshing the databases:
 
@@ -177,8 +168,6 @@ Enabling multilib means uncommenting both lines, then refreshing the databases:
 [multilib]
 Include = /etc/pacman.d/mirrorlist
 ```
-
-Copy
 
 A third-party repo is the same shape, appended at the end of the file, and the lower it sits the lower its priority:
 
@@ -188,9 +177,7 @@ SigLevel = Optional TrustAll
 Server = https://example.com/repo/$arch
 ```
 
-Copy
-
-Run sudo pacman -Syu after either change. Custom post-install actions go in /etc/pacman.d/hooks/\*.hook rather than in this file.
+Run sudo pacman -Syu after either change. Custom post-install actions go in /etc/pacman.d/hooks/*.hook rather than in this file.
 
 ## The AUR
 
@@ -204,26 +191,28 @@ pacman itself cannot install from the AUR: the AUR ships build recipes, not pack
 
 Building by hand, without a helper:
 
-```
+```bash
 git clone https://aur.archlinux.org/package.git
 cd package && makepkg -si
 ```
-
-Copy
 
 ## yay and paru
 
 Helpers pass repo packages straight to pacman and build AUR ones with makepkg. Install one with the same manual build, since the helper is itself an AUR package:
 
-```
+```bash
 sudo pacman -S --needed git base-devel
 git clone https://aur.archlinux.org/yay.git
 cd yay && makepkg -si
 ```
 
-Copy
-
-[TABLE]
+| Command | What it does |
+|---|---|
+| `yay -S package` | Search and install package from AUR or official repos |
+| `yay -Syu` | Upgrade both official repository packages and AUR packages |
+| `yay -Ss keyword` | Search for packages across official repos and the AUR |
+| `yay -Si package` | View PKGBUILD info and dependencies of an AUR package |
+| `yay -Yc` | Clean unneeded dependencies (clean unneeded AUR build artifacts) |
 
 Run helpers as your normal user, never with sudo: they call sudo themselves at the install step, and building as root breaks file ownership. Everything in the AUR is a user submission with no review, so read the PKGBUILD for anything with few votes.
 
@@ -243,11 +232,23 @@ pacman logs every transaction to /var/log/pacman.log. There is no history undo l
 
 pacman flags compose: one capital operation letter plus lowercase modifiers.
 
-[TABLE]
+| Primary Operation | Flag | Meaning |
+|---|---|---|
+| `-S` | Sync | Work with remote repositories (install, sync, upgrade) |
+| `-Q` | Query | Inspect local database and currently installed packages |
+| `-R` | Remove | Uninstall packages from the system |
+| `-U` | Upgrade | Install local or remote package archive file |
+| `-F` | Files | Search database for files provided by packages |
+| `-D` | Database | Modify package database (e.g. mark package as explicit or dependency) |
 
 ## Common pacman Errors
 
-[TABLE]
+| Error Message | Cause | Solution |
+|---|---|---|
+| `db.lck file exists` | Another pacman instance is running or previous run crashed | Ensure no pacman is running, then `sudo rm /var/lib/pacman/db.lck` |
+| `signature from ... is unknown trust` | Keyring outdated or package signed by new maintainer | Run `sudo pacman -Sy archlinux-keyring && sudo pacman -Syu` |
+| `failed to commit transaction (conflicting files)` | Untracked file already exists at target destination | Check file origin with `pacman -Qo <path>` or use `--overwrite '*'` |
+| `target not found` | Package is in the AUR or repository lists are stale | Run `sudo pacman -Sy` or use an AUR helper like `yay` |
 
 ## pacman, apt and dnf
 
@@ -265,49 +266,13 @@ The same tasks on Debian and Ubuntu are in the [apt cheat sheet](https://sshwork
 
 ## Gotchas
 
-- Partial upgrades break Arch. Either
-  pacman -Syu
-  or nothing; never
-  -Sy
-  followed by an install later, and that includes an AUR helper refreshing the databases for you.
-- When you have edited a config file, pacman writes the new default next to it as
-  file.pacnew
-  instead of overwriting. Merge them after upgrades with
-  pacdiff
-  (pacman-contrib), or at least look for them:
-  find /etc -name '\*.pacnew'
-  .
-- Signature errors after months without updates mean a stale keyring, not corrupt mirrors:
-  sudo pacman -Sy archlinux-keyring && sudo pacman -Su
-  .
-- Downloads crawling is nearly always the mirrorlist, not pacman. Re-rank with reflector and raise
-  ParallelDownloads
-  in
-  /etc/pacman.conf
-  .
-- Queries need no root.
-  -Q
-  ,
-  -Ss
-  ,
-  -Si
-  , and
-  -Qo
-  all run as a normal user; only
-  -S
-  ,
-  -R
-  , and
-  -U
-  need sudo.
+- Partial upgrades break Arch. Either pacman -Syu or nothing; never -Sy followed by an install later, and that includes an AUR helper refreshing the databases for you.
+- When you have edited a config file, pacman writes the new default next to it as file.pacnew instead of overwriting. Merge them after upgrades with pacdiff (pacman-contrib), or at least look for them: find /etc -name '*.pacnew'.
+- Signature errors after months without updates mean a stale keyring, not corrupt mirrors: sudo pacman -Sy archlinux-keyring && sudo pacman -Su.
+- Downloads crawling is nearly always the mirrorlist, not pacman. Re-rank with reflector and raise ParallelDownloads in /etc/pacman.conf.
+- Queries need no root. -Q, -Ss, -Si, and -Qo all run as a normal user; only -S, -R, and -U need sudo.
 - Manjaro holds Arch packages back about two weeks, so AUR builds that assume Arch-current libraries can fail there on version skew alone.
 - MSYS2 on Windows uses pacman with its own repositories: the flags on this page work, the Arch repos and the AUR do not.
-
-### Patch every server from one place
-
-SSH Workbench shows pending updates across all your servers at once and runs them over plain SSH, so a security patch is a click instead of a loop over hostnames.
-
-[Try free for 7 days](https://sshworkbench.com/#install)
 
 ## pacman FAQ
 
@@ -332,4 +297,4 @@ pacman cannot install from the AUR at all. The AUR distributes PKGBUILD build re
 /etc/pacman.conf holds the repositories and pacman's own behaviour, and /etc/pacman.d/mirrorlist holds the servers it downloads from. Drop-in hooks live in /etc/pacman.d/hooks. Upgrades never overwrite your edits: pacman writes the new default next to the file as pacman.conf.pacnew, which is why enabling multilib or ParallelDownloads sometimes looks like it silently reverted after an upgrade. Merge pacnew files with pacdiff from pacman-contrib.
 
 ---
-Källa: https://sshworkbench.com/cheatsheets/pacman
+Source: https://sshworkbench.com/cheatsheets/pacman

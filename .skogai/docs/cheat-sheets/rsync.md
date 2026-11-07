@@ -2,35 +2,17 @@
 
 rsync copies files locally or over SSH and only sends the parts that changed, which makes it the tool for backups, deployments, and moving a server. Read the trailing slash section first, because that one character decides what every other command here does.
 
-Last updated September 11, 2026
-
-On this page
-
-- [Basic Copy](#basic-copy)
-- [Trailing Slash](#trailing-slash)
-- [Over SSH](#over-ssh)
-- [Flags Explained](#flags-explained)
-- [Dry Run](#dry-run)
-- [Exclude and Include](#exclude-and-include)
-- [Delete and Mirror](#delete-and-mirror)
-- [Progress and Resume](#progress-and-resume)
-- [Speed and Large Transfers](#speed-and-large-transfers)
-- [Compare and Verify](#compare-and-verify)
-- [Permissions and Ownership](#permissions-and-ownership)
-- [Backups and Snapshots](#backups-and-snapshots)
-- [Cron and Logging](#cron-and-logging)
-- [Daemon Mode](#daemon-mode)
-- [Common Recipes](#common-recipes)
-- [Windows and macOS](#windows-and-macos)
-- [rsync vs scp](#rsync-vs-scp)
-- [Exit Codes](#exit-codes)
-- [Gotchas](#gotchas)
-
 ## Basic Copy
 
 -a (archive) is the flag you almost always want: recursive, keeps permissions, times, owner, group, symlinks, and devices. The [rsync command builder](https://sshworkbench.com/tools/rsync-command-builder) assembles one of these interactively.
 
-[TABLE]
+| Command | What it does |
+|---|---|
+| `rsync -av src/ dest/` | Copy contents of `src` into `dest` with archive mode and verbose output |
+| `rsync -av src dest/` | Copy directory `src` itself into `dest/src` |
+| `rsync -a src/ dest/` | Archive copy silently (ideal for cron jobs and scripts) |
+| `rsync -avh src/ dest/` | Archive copy with human-readable numbers (MB, GB) |
+| `rsync -avz src/ user@host:/dest/` | Archive copy with compression for remote transfers |
 
 rsync -a with no -v prints nothing on success, which is what you want in cron.
 
@@ -38,50 +20,34 @@ rsync -a with no -v prints nothing on success, which is what you want in cron.
 
 The one thing about rsync that catches everyone, and the reason behind most "it copied into the wrong folder" and "--delete wiped my directory" reports. A trailing slash on the source path means "the contents of this directory". No slash means "this directory itself". The slash on the destination changes nothing at all.
 
-[TABLE]
+| Source Syntax | Destination Syntax | Result |
+|---|---|---|
+| `rsync -a src/ dest/` | Trailing slash on source | Contents of `src/` placed into `dest/` |
+| `rsync -a src dest/` | No slash on source | Directory `src` copied into `dest/src/` |
+| `rsync -a src/ dest` | No slash on dest | Same as `dest/` (dest slash changes nothing) |
 
-Read src/ as src/\* including hidden files, and src as "put a copy of this directory in there". Three consequences worth knowing before you run anything else on this page:
+Read src/ as src/* including hidden files, and src as "put a copy of this directory in there". Three consequences worth knowing before you run anything else on this page:
 
-- With
-  --delete
-  ,
-  src/ dest/
-  prunes everything in
-  dest
-  , while
-  src dest/
-  only prunes
-  dest/src
-  and leaves the rest of
-  dest
-  alone. Getting that backwards is how people empty a directory.
-- Tab completion appends the slash for you, so the command you typed and the command you tabbed are not the same command. Check the source path before pressing Enter, and dry run with
-  -n
-  .
-- src/
-  is not the same as
-  src/\*
-  . The glob is expanded by the shell, which skips dotfiles, so
-  rsync -av src/\* dest/
-  silently leaves out
-  .env
-  and
-  .htaccess
-  .
+- With --delete, src/ dest/ prunes everything in dest, while src dest/ only prunes dest/src and leaves the rest of dest alone. Getting that backwards is how people empty a directory.
+- Tab completion appends the slash for you, so the command you typed and the command you tabbed are not the same command. Check the source path before pressing Enter, and dry run with -n.
+- src/ is not the same as src/*. The glob is expanded by the shell, which skips dotfiles, so rsync -av src/* dest/ silently leaves out.env and.htaccess.
 
 ## Over SSH
 
 Remote paths are user@host:/path. rsync must be installed at both ends. It runs over SSH by default, so keys, ~/.ssh/config aliases, and agent forwarding all apply; see the [SSH cheat sheet](https://sshworkbench.com/cheatsheets/ssh).
 
-[TABLE]
+| Command | What it does |
+|---|---|
+| `rsync -avz src/ user@remote:/path/` | Push local directory to remote server over SSH |
+| `rsync -avz user@remote:/path/ dest/` | Pull remote directory to local machine |
+| `rsync -avz -e "ssh -p 2222" src/ user@remote:/path/` | Connect over non-standard SSH port |
+| `rsync -avz -e "ssh -i ~/.ssh/key.pem" src/ user@remote:/path/` | Use a specific SSH private key |
 
 Copy between two remote servers: rsync cannot take two remote paths in one command. Log into one and push to the other, or forward your agent so the first server can authenticate to the second.
 
-```
+```bash
 ssh -A user@server1 'rsync -avz /var/www/ user@server2:/var/www/'
 ```
-
-Copy
 
 A connection that fails with exit code 255 is an SSH problem, not an rsync one. See [Connection refused](https://sshworkbench.com/fix/ssh-connection-refused) and [Permission denied (publickey)](https://sshworkbench.com/fix/ssh-permission-denied-publickey).
 
@@ -89,7 +55,15 @@ A connection that fails with exit code 255 is an SSH problem, not an rsync one. 
 
 Paste any command into the [rsync flag explainer](https://sshworkbench.com/tools/rsync-flag-explainer) to decode it.
 
-[TABLE]
+| Flag | Name | Meaning |
+|---|---|---|
+| `-a` | `--archive` | Equivalent to `-rlptgoD` (recurse, symlinks, perms, times, owner, group, devices) |
+| `-v` | `--verbose` | Increase verbosity / list transferred files |
+| `-z` | `--compress` | Compress file data during transfer |
+| `-h` | `--human-readable` | Output numbers in human-readable format (K, M, G) |
+| `-P` | `--partial --progress` | Keep partially transferred files and show real-time progress |
+| `-n` | `--dry-run` | Perform a trial run with no changes made |
+| `--delete` | `--delete` | Delete extraneous files from destination |
 
 -avz is the standard remote copy, -avh the standard local one, and -avzP when the link might drop.
 
@@ -97,23 +71,37 @@ Paste any command into the [rsync flag explainer](https://sshworkbench.com/tools
 
 Run every new rsync command with -n first, and always before --delete.
 
-[TABLE]
+| Command | What it does |
+|---|---|
+| `rsync -avn src/ dest/` | Dry run: show files that would be copied without touching disk |
+| `rsync -avn --delete src/ dest/` | Dry run with deletion: see exactly what would be removed |
+| `rsync -ani src/ dest/` | Itemized changes preview (`>f` file sent, `cd` dir created, `*deleting`) |
 
-In itemized output, \>f is a file being sent, cd a directory being created, \*deleting a deletion, and the dots after the type mark which attributes changed (s size, t time, p permissions, o owner).
+In itemized output, >f is a file being sent, cd a directory being created, *deleting a deletion, and the dots after the type mark which attributes changed (s size, t time, p permissions, o owner).
 
 ## Exclude and Include
 
-Patterns match relative to the top of the transfer. A trailing / matches directories only, a leading / anchors the pattern to the transfer root, and \* does not cross a / (\*\* does).
+Patterns match relative to the top of the transfer. A trailing / matches directories only, a leading / anchors the pattern to the transfer root, and * does not cross a / (** does).
 
-[TABLE]
+| Option | Example | Meaning |
+|---|---|---|
+| `--exclude` | `--exclude 'node_modules'` | Exclude matching directories or files anywhere |
+| `--exclude` | `--exclude '/cache'` | Exclude anchored to the transfer root |
+| `--exclude-from` | `--exclude-from='.gitignore'` | Read exclude patterns from a file |
+| `--include` | `--include '*/' --include '*.log' --exclude '*'` | Only sync directories and `.log` files |
 
-Include and exclude rules are checked in order and the first match wins, which is why --include comes before --exclude '\*'. An exclude that "does not work" is almost always anchored wrong: --exclude 'src/node_modules' does not match when the transfer root is src/, but --exclude '/node_modules' does.
+Include and exclude rules are checked in order and the first match wins, which is why --include comes before --exclude '*'. An exclude that "does not work" is almost always anchored wrong: --exclude 'src/node_modules' does not match when the transfer root is src/, but --exclude '/node_modules' does.
 
 ## Delete and Mirror
 
 --delete makes the destination match the source exactly, including removing files. Combined with a wrong path or a missing trailing slash it can empty a directory, so dry run first.
 
-[TABLE]
+| Option | What it does |
+|---|---|
+| `--delete` | Delete files in destination not present in source (default: during transfer) |
+| `--delete-before` | Delete files in destination before transferring new ones |
+| `--delete-after` | Delete files in destination after all transfers complete |
+| `--delete-excluded` | Also delete files in destination that match exclude patterns |
 
 --delete only deletes inside directories that are part of the transfer. rsync -av --delete src dest/ (no trailing slash) syncs dest/src/ and never touches the rest of dest.
 
@@ -129,7 +117,7 @@ Include and exclude rules are checked in order and the first match wins, which i
 | rsync -av --bwlimit=5000 src/ user@host:/path/ | Cap at about 5 MB/s so you do not saturate the link |
 | rsync -av --bwlimit=50m src/ user@host:/path/ | Cap at 50 MiB/s |
 | rsync -av --timeout=120 src/ user@host:/path/ | Abort if the transfer stalls for two minutes |
-| nohup rsync -avz src/ user@host:/path/ \> rsync.log 2\>&1 & | Run in the background and survive logout |
+| nohup rsync -avz src/ user@host:/path/ > rsync.log 2>&1 & | Run in the background and survive logout |
 
 For a transfer that takes hours, start it inside tmux or screen so a dropped SSH session does not kill it; see the [tmux cheat sheet](https://sshworkbench.com/cheatsheets/tmux). If the SSH session itself keeps dropping, see [Broken pipe](https://sshworkbench.com/fix/ssh-broken-pipe).
 
@@ -137,7 +125,12 @@ For a transfer that takes hours, start it inside tmux or screen so a dropped SSH
 
 One rsync run is single-threaded and uses one SSH connection, so the way to go faster is usually to do less work or to run several transfers at once.
 
-[TABLE]
+| Option | Example | Meaning |
+|---|---|---|
+| `--bwlimit` | `--bwlimit=10m` | Cap transfer speed at 10 MiB/s |
+| `--timeout` | `--timeout=60` | Abort if transfer stalls for 60 seconds |
+| `--inplace` | `--inplace` | Update destination file directly instead of writing temporary copy |
+| `--no-W` | `--no-whole-file` | Use delta-transfer algorithm even when copying locally |
 
 On trees with hundreds of thousands of small files, building and comparing the file list costs more than the transfer, and no flag fixes that. Split the tree and run several rsyncs, or tar the directory and copy one stream.
 
@@ -145,7 +138,12 @@ On trees with hundreds of thousands of small files, building and comparing the f
 
 rsync decides what to send from size and modification time, not from file contents. These commands compare without copying, or force a content comparison.
 
-[TABLE]
+| Option | Flag | Meaning |
+|---|---|---|
+| Checksum | `-c`, `--checksum` | Compare files by MD5 checksum instead of size + modification time |
+| Size only | `--size-only` | Skip files that match in size, regardless of timestamp |
+| Ignore existing | `--ignore-existing` | Skip updating files that already exist on destination |
+| Update only | `-u`, `--update` | Skip files that are newer on destination |
 
 rsync already checksums every file it transfers and retries any that fails, so a run that exits 0 wrote correct data. -c is about deciding what to send, not about verifying what arrived.
 
@@ -173,8 +171,8 @@ Preserving owner means rsync on the receiving end runs as root, either because y
 | Command | What it does |
 |----|----|
 | rsync -aAXv --delete src/ /backup/current/ | A plain mirror backup, ACLs and extended attributes included |
-| rsync -av --link-dest=/backup/latest src/ /backup/\$(date +%F)/ | Dated snapshot; unchanged files are hard links to the previous one |
-| rsync -av --backup --backup-dir=/backup/old/\$(date +%F) src/ dest/ | Keep the previous version of anything overwritten or deleted |
+| rsync -av --link-dest=/backup/latest src/ /backup/$(date +%F)/ | Dated snapshot; unchanged files are hard links to the previous one |
+| rsync -av --backup --backup-dir=/backup/old/$(date +%F) src/ dest/ | Keep the previous version of anything overwritten or deleted |
 | rsync -av --backup --suffix=.bak src/ dest/ | Rename replaced files in place instead of moving them aside |
 | rsync -avz --delete src/ user@host:/backup/ | Offsite copy over SSH |
 | rsync -av --exclude-from=/etc/backup-excludes src/ /backup/ | Keep the exclusion list in a file you can version |
@@ -193,24 +191,27 @@ In cron there is no terminal, no ssh-agent, and a minimal PATH, which is where n
 | rsync -a -e "ssh -i /root/.ssh/backup_key -o BatchMode=yes" src/ user@host:/b/ | Fixed key, and fail instead of prompting for a password |
 | flock -n /var/lock/backup.lock rsync -a src/ dest/ | Skip this run if the last one is still going |
 | ionice -c3 nice -n19 rsync -a src/ dest/ | Run at the lowest disk and CPU priority |
-| rsync -a --out-format="%i %n" src/ dest/ \>\> /var/log/rsync.log | Itemized change log without full verbosity |
+| rsync -a --out-format="%i %n" src/ dest/ >> /var/log/rsync.log | Itemized change log without full verbosity |
 
-```
+```bash
 # /etc/cron.d/backup
 0 3 * * * root /usr/bin/flock -n /var/lock/backup.lock /usr/bin/rsync -a --delete \
   -e "ssh -i /root/.ssh/backup_key -o BatchMode=yes" /srv/ backup@host:/srv/ \
   >> /var/log/backup.log 2>&1
 ```
 
-Copy
-
-Use absolute paths, a key with no passphrase (or a systemd timer with the agent available), and check \$? rather than the output: rsync -a prints nothing on success, so a silent cron job and a failed one look the same. BatchMode=yes turns a password prompt into an immediate exit 255, which is the behaviour you want when nobody is watching.
+Use absolute paths, a key with no passphrase (or a systemd timer with the agent available), and check $? rather than the output: rsync -a prints nothing on success, so a silent cron job and a failed one look the same. BatchMode=yes turns a password prompt into an immediate exit 255, which is the behaviour you want when nobody is watching.
 
 ## Daemon Mode
 
 rsync can also run as its own service on TCP 873, with no SSH and no encryption. Remote paths then use a double colon or an rsync:// URL, and the first component is a module name from rsyncd.conf, not a filesystem path.
 
-[TABLE]
+| Command | What it does |
+|---|---|
+| `rsync --daemon` | Start rsync in standalone daemon mode |
+| `rsync -av src/ rsync://host/module/path/` | Transfer using rsync daemon protocol (port 873) |
+| `rsync -av src/ host::module/path/` | Shorthand syntax for rsync daemon transfer |
+| `rsync rsync://host/` | List public modules offered by daemon |
 
 ```
 # /etc/rsyncd.conf
@@ -222,81 +223,75 @@ secrets file = /etc/rsyncd.secrets
 hosts allow = 10.0.0.0/24
 ```
 
-Copy
-
 One colon means SSH, two colons mean the daemon. Mixing them up gives unexpected remote arg or a hang on port 873. Daemon traffic is plaintext and the passwords are not SSH keys, so keep it on a private network and use the default SSH transport over the internet.
 
 ## Common Recipes
 
 Back up a home directory to an external drive:
 
-```
+```bash
 rsync -avh --delete --exclude '.cache/' --exclude 'node_modules/' ~/ /Volumes/Backup/home/
 ```
 
-Copy
-
 Mirror a website from a server, keeping a rotating set of dated snapshots that share unchanged files via hard links:
 
-```
+```bash
 rsync -avz --delete --link-dest=/backup/www/latest user@host:/var/www/ /backup/www/$(date +%F)/
 ln -sfn /backup/www/$(date +%F) /backup/www/latest
 ```
 
-Copy
-
 Deploy a build, excluding what should not ship, then reload:
 
-```
+```bash
 rsync -avz --delete --exclude '.git' --exclude '.env' --exclude 'node_modules' \
   ./dist/ deploy@host:/var/www/app/ && ssh deploy@host 'sudo systemctl reload nginx'
 ```
 
-Copy
-
 Copy only files changed in the last day:
 
-```
+```bash
 find src -type f -mtime -1 -printf '%P\n' | rsync -av --files-from=- src/ dest/
 ```
 
-Copy
-
 Sync two directories both ways (run once in each direction; rsync is one-way, --update keeps the newer copy):
 
-```
+```bash
 rsync -avu a/ b/ && rsync -avu b/ a/
 ```
 
-Copy
-
 Move a whole server's data directory to a new host over a slow link, resumable:
 
-```
+```bash
 rsync -avzP --bwlimit=20m -e "ssh -p 2222" /srv/data/ root@newhost:/srv/data/
 ```
 
-Copy
-
 Clone a disk or root filesystem to another mounted volume, staying off /proc, /sys, and other mounts:
 
-```
+```bash
 sudo rsync -aAXHvx --numeric-ids --exclude={'/dev/*','/proc/*','/sys/*','/tmp/*','/run/*','/mnt/*','/media/*','/lost+found'} / /mnt/newdisk/
 ```
-
-Copy
 
 ## Windows and macOS
 
 rsync is a Unix program. Windows has no native version, and the one Apple ships is not the rsync the manual describes.
 
-[TABLE]
+| Platform | Tool / Flag | Notes |
+|---|---|---|
+| Windows (Git Bash/WSL) | `/c/Users/...` or `/mnt/c/...` | Watch path separators and Windows permissions |
+| Windows (cwRsync) | `rsync -av /cygdrive/c/...` | Converts Windows drive letters to POSIX mounts |
+| macOS | `--iconv=UTF-8-MAC,UTF-8` | Fix NFD vs NFC Unicode filename mismatches |
+| macOS | `-E`, `--extended-attributes` | Preserve macOS extended attributes and resource forks |
 
 Check which one you have with rsync --version. Under WSL, a copy from /mnt/c cannot preserve Unix permissions, so expect -a to warn and use --no-perms --no-owner --no-group there too.
 
 ## rsync vs scp
 
-[TABLE]
+| Feature | `rsync` | `scp` |
+|---|---|---|
+| Algorithm | Delta-transfer (only diffs sent) | Whole file copied every time |
+| Resuming | Yes (`-P`, `--partial`) | No (restarts from scratch) |
+| Speed | Fast for updates/syncs | Fast for single new small files |
+| Delete extras | Yes (`--delete`) | No |
 
 OpenSSH's scp has used the SFTP protocol under the hood since 9.0, which fixed its security problems but did not add any of the above.
 
@@ -304,71 +299,29 @@ Two other comparisons come up often. rclone is the tool when one side is cloud s
 
 ## Exit Codes
 
-rsync reports its result in the exit code (echo \$? right after it runs), which is what a cron job or a script should check.
+rsync reports its result in the exit code (echo $? right after it runs), which is what a cron job or a script should check.
 
-[TABLE]
+| Exit Code | Meaning | Common Cause |
+|---|---|---|
+| `0` | Success | Transfer completed cleanly |
+| `1` | Syntax or usage error | Invalid flag or malformed path |
+| `2` | Protocol incompatibility | Remote rsync version mismatch or connection issue |
+| `11` | Error in file I/O | Disk full or filesystem read/write failure |
+| `12` | Error in rsync protocol data stream | Connection dropped or terminated abruptly |
+| `23` | Partial transfer due to error | Permission denied on certain files |
+| `255` | SSH connection failure | SSH authentication or network unreachable |
 
 ## Gotchas
 
-- --delete
-  with the wrong trailing slash or a mistyped destination removes real files.
-  -n
-  first, every time.
-- rsync must exist on the remote host.
-  bash: rsync: command not found
-  from the far end and exit code 12 or 127 mean
-  apt install rsync
-  there, not here.
-- A
-  .bashrc
-  on the remote that prints something (a banner, a
-  echo
-  , an unguarded
-  neofetch
-  ) corrupts the protocol stream and gives
-  protocol version mismatch
-  or code 12. Guard it with
-  \[\[ \$- != \*i\* \]\] && return
-  at the top.
-- macOS ships an old rsync 2.6.9, and macOS 15 replaced it with openrsync, which lacks flags such as
-  --info=progress2
-  .
-  brew install rsync
-  gives you 3.x; on Windows, rsync comes with WSL, Cygwin, or MSYS2, not with Git Bash by default.
-- -z
-  slows down a LAN copy and does nothing for files that are already compressed (images, video, archives). Use it over the internet, drop it locally.
-- Copying to a drive formatted exFAT, FAT32, or NTFS from Linux recopies everything each run because the filesystem cannot store the same times and permissions. Add
-  --no-perms --no-owner --no-group --modify-window=1
-  or
-  --size-only
-  .
-- rsync -av src/\*.jpg dest/
-  dies in zsh with
-  zsh: no matches found
-  when nothing matches, because zsh refuses an unmatched glob instead of passing it through the way bash does. Pick files with
-  --include '\*.jpg' --exclude '\*'
-  rather than a shell glob. On a remote source the glob is expanded by the remote shell, so it has to be quoted:
-  rsync -av 'user@host:/var/log/\*.gz' ./
-  .
-- unexpected remote arg
-  means the remote path is missing its colon (
-  user@host/path
-  instead of
-  user@host:/path
-  ) or you gave two remote paths in one command.
-- Changing only a file's permissions or owner does not change its size or time, so a plain
-  -av
-  run does not resend it but does update the attributes. Content edits that keep the same size and time (rare, but
-  touch -r
-  and some build tools do it) need
-  -c
-  to be noticed.
-
-### Stop memorizing commands
-
-SSH Workbench puts the common server tasks behind buttons: services, Docker, files, cron, firewall. The terminal is still there when you want it.
-
-[Try free for 7 days](https://sshworkbench.com/#install)
+- --delete with the wrong trailing slash or a mistyped destination removes real files. -n first, every time.
+- rsync must exist on the remote host. bash: rsync: command not found from the far end and exit code 12 or 127 mean apt install rsync there, not here.
+- A.bashrc on the remote that prints something (a banner, a echo, an unguarded neofetch) corrupts the protocol stream and gives protocol version mismatch or code 12. Guard it with [[ $- != *i* ]] && return at the top.
+- macOS ships an old rsync 2.6.9, and macOS 15 replaced it with openrsync, which lacks flags such as --info=progress2. brew install rsync gives you 3.x; on Windows, rsync comes with WSL, Cygwin, or MSYS2, not with Git Bash by default.
+- -z slows down a LAN copy and does nothing for files that are already compressed (images, video, archives). Use it over the internet, drop it locally.
+- Copying to a drive formatted exFAT, FAT32, or NTFS from Linux recopies everything each run because the filesystem cannot store the same times and permissions. Add --no-perms --no-owner --no-group --modify-window=1 or --size-only.
+- rsync -av src/*.jpg dest/ dies in zsh with zsh: no matches found when nothing matches, because zsh refuses an unmatched glob instead of passing it through the way bash does. Pick files with --include '*.jpg' --exclude '*' rather than a shell glob. On a remote source the glob is expanded by the remote shell, so it has to be quoted: rsync -av 'user@host:/var/log/*.gz' ./.
+- unexpected remote arg means the remote path is missing its colon ( user@host/path instead of user@host:/path) or you gave two remote paths in one command.
+- Changing only a file's permissions or owner does not change its size or time, so a plain -av run does not resend it but does update the attributes. Content edits that keep the same size and time (rare, but touch -r and some build tools do it) need -c to be noticed.
 
 ## rsync FAQ
 
@@ -393,4 +346,4 @@ Only when you pass --delete. A normal run adds and updates, and removes nothing.
 On a repeat copy, because it sends only what changed. rsync compares size and modification time, skips the files that match, and for a file that does differ sends just the blocks that differ, so re-syncing a 50 GB tree after one edit moves a few megabytes. On a first copy of new data there is nothing to skip and rsync can be the slower of the two: it builds a file list before it starts, which hurts on trees with hundreds of thousands of small files, and -z burns CPU on data that is often already compressed. Between two local disks, add -W to skip the delta calculation entirely.
 
 ---
-Källa: https://sshworkbench.com/cheatsheets/rsync
+Source: https://sshworkbench.com/cheatsheets/rsync

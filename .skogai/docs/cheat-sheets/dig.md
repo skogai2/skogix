@@ -2,28 +2,20 @@
 
 dig (Domain Information Groper) is the DNS lookup tool that ships with BIND, preinstalled on macOS and most Linux servers. This sheet covers dig command examples for every record type, +short output, querying a specific server, reverse lookups, +trace, and how to read the output.
 
-Last updated September 11, 2026
-
-On this page
-
-- [Basic Queries](#basic-queries)
-- [All Records](#all-records)
-- [Short Answers](#short-answers)
-- [Querying a Specific Server](#querying-a-specific-server)
-- [Reverse Lookups](#reverse-lookups)
-- [Tracing and Debugging](#tracing-and-debugging)
-- [Reading the Output](#reading-the-output)
-- [Options](#options)
-- [Installing dig](#installing-dig)
-- [dig on Windows](#dig-on-windows)
-- [dig on macOS](#dig-on-macos)
-- [Gotchas](#gotchas)
-
 ## Basic Queries
 
-The shape is dig \[@server\] name \[type\]. With no type, dig asks for A records.
+The shape is dig [@server] name [type]. With no type, dig asks for A records.
 
-[TABLE]
+| Command | What it does |
+|---|---|
+| `dig example.com` | Query default A (IPv4) record |
+| `dig example.com AAAA` | Query IPv6 address record |
+| `dig example.com MX` | Query mail exchange servers |
+| `dig example.com TXT` | Query TXT records (SPF, verification tokens) |
+| `dig example.com CNAME` | Query canonical name alias |
+| `dig example.com NS` | Query authoritative nameservers |
+| `dig example.com ANY` | Query all available record types |
+| `dig example.com +short` | Print clean answer data only (ideal for scripts) |
 
 ## All Records
 
@@ -42,8 +34,6 @@ Loop the types you actually care about:
 for t in A AAAA MX TXT NS SOA CAA; do dig +noall +answer example.com "$t"; done
 ```
 
-Copy
-
 ## Short Answers
 
 | Command | What it does |
@@ -59,8 +49,6 @@ An aliased name prints its whole CNAME chain under +short, one line per step:
 ```
 dig +short www.example.com | tail -n1   # only the final IP address
 ```
-
-Copy
 
 ## Querying a Specific Server
 
@@ -81,8 +69,6 @@ dig +short example.com @ns1.example.com   # what the zone actually says
 dig +short example.com @8.8.8.8           # what the world still sees cached
 ```
 
-Copy
-
 ## Reverse Lookups
 
 -x takes a plain IP and builds the in-addr.arpa PTR query for you, octet reversal included.
@@ -97,7 +83,12 @@ An empty answer is common here: many addresses simply have no PTR record, and th
 
 ## Tracing and Debugging
 
-[TABLE]
+| Command | What it does |
+|---|---|
+| `dig example.com +trace` | Trace full iterative resolution path from root nameservers down |
+| `dig @8.8.8.8 example.com` | Query Google public DNS resolver explicitly |
+| `dig @1.1.1.1 example.com` | Query Cloudflare public DNS resolver explicitly |
+| `dig -x 8.8.8.8` | Reverse DNS lookup (PTR record) |
 
 ## Reading the Output
 
@@ -117,13 +108,23 @@ example.com.          300     IN      A       203.0.113.10
 ;; SERVER: 127.0.0.53#53(127.0.0.53) (UDP)
 ```
 
-Copy
-
-[TABLE]
+| Section | Description |
+|---|---|
+| `HEADER` | Query status code (`NOERROR`, `NXDOMAIN`, `SERVFAIL`), flags (`qr`, `rd`, `ra`) |
+| `QUESTION SECTION` | Requested domain name and record type |
+| `ANSWER SECTION` | Resolved DNS records, TTL, class, and value |
+| `AUTHORITY SECTION` | Authoritative nameservers responsible for the zone |
+| `ADDITIONAL SECTION` | Glue records (IPs of nameservers) and EDNS info |
 
 ## Options
 
-[TABLE]
+| Option Flag | Purpose |
+|---|---|
+| `+short` | Output answer IP / value only with no header or metadata |
+| `+noall +answer` | Suppress everything except the clean Answer section |
+| `+tcp` | Force query over TCP instead of UDP |
+| `+dnssec` | Request DNSSEC cryptographic validation records (RRSIG) |
+| `+time=2` | Set query timeout in seconds |
 
 Batch mode pairs naturally with the short output flags:
 
@@ -131,27 +132,30 @@ Batch mode pairs naturally with the short output flags:
 dig -f domains.txt +noall +answer
 ```
 
-Copy
-
 Options you always want can live in ~/.digrc, one line, same syntax:
 
 ```
 +noall +answer
 ```
 
-Copy
-
 ## Installing dig
 
 dig: command not found means the BIND utilities are missing, not that DNS is broken. No distro ships a package called dig.
 
-[TABLE]
+| Distribution | Package Name | Command |
+|---|---|---|
+| Debian / Ubuntu | `dnsutils` or `bind9-dnsutils` | `sudo apt install dnsutils` |
+| Arch Linux | `bind` | `sudo pacman -S bind` |
+| Fedora / RHEL | `bind-utils` | `sudo dnf install bind-utils` |
 
 ## dig on Windows
 
 cmd and PowerShell have no dig. The built-ins cover most lookups, and WSL gives you the real thing.
 
-[TABLE]
+| Method | Details |
+|---|---|
+| BIND for Windows | Official ISC BIND tools include native `dig.exe` |
+| PowerShell Equivalent | `Resolve-DnsName -Name example.com -Type A` |
 
 ISC stopped building BIND for Windows after 9.16, so standalone dig-for-Windows downloads are old builds. WSL or Chocolatey gets you a current one.
 
@@ -161,48 +165,25 @@ nslookup asks the same servers the same questions, but prints a stripped summary
 
 dig is preinstalled on every macOS release. It reads /etc/resolv.conf, which macOS generates from the primary network service only, so dig can miss the per-domain resolvers a VPN adds and disagree with the rest of the system.
 
-[TABLE]
+| Details |
+|---|
+| `dig` is pre-installed out of the box on macOS in `/usr/bin/dig` |
 
 Flush the system cache before retesting a record that changed:
 
-```
+```bash
 sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder
 ```
 
-Copy
-
 ## Gotchas
 
-- +short
-  prints nothing when the name does not exist. Drop it and read the
-  status:
-  line before deciding a record is missing.
+- +short prints nothing when the name does not exist. Drop it and read the status: line before deciding a record is missing.
 - ANY is effectively dead: Cloudflare and many other servers answer it with a single RFC 8482 HINFO record. Query each type you care about instead.
-- dig asks the DNS server directly and ignores
-  /etc/hosts
-  , nsswitch, and mDNS, so dig can resolve a name that
-  ssh
-  still cannot, and the other way round. When SSH is the one failing, see [Could not resolve hostname](https://sshworkbench.com/fix/ssh-could-not-resolve-hostname).
-- SERVER: 127.0.0.53
-  means systemd-resolved answered, possibly from its cache. Retest with
-  @1.1.1.1
-  before blaming the upstream record.
-- A falling TTL plus a 0 ms query time means you are looking at a cached answer, not the zone.
-  +trace
-  or
-  @ns1.example.com
-  gets the live data.
-- ANY
-  and
-  axfr
-  both look like a way to dump a zone, and neither works against a domain you do not run. See All Records for what to do instead.
+- dig asks the DNS server directly and ignores /etc/hosts, nsswitch, and mDNS, so dig can resolve a name that ssh still cannot, and the other way round. When SSH is the one failing, see [Could not resolve hostname](https://sshworkbench.com/fix/ssh-could-not-resolve-hostname).
+- SERVER: 127.0.0.53 means systemd-resolved answered, possibly from its cache. Retest with @1.1.1.1 before blaming the upstream record.
+- A falling TTL plus a 0 ms query time means you are looking at a cached answer, not the zone. +trace or @ns1.example.com gets the live data.
+- ANY and axfr both look like a way to dump a zone, and neither works against a domain you do not run. See All Records for what to do instead.
 - dig missing? It lives in the BIND utilities package, never one called dig. See Installing dig above.
-
-### Stop memorizing commands
-
-SSH Workbench puts the common server tasks behind buttons: services, Docker, files, cron, firewall. The terminal is still there when you want it.
-
-[Try free for 7 days](https://sshworkbench.com/#install)
 
 ## dig FAQ
 
@@ -227,4 +208,4 @@ Read it bottom to top when you are debugging. The SERVER line says who answered,
 Check the status field first. NXDOMAIN means the name does not exist at all. NOERROR with ANSWER: 0 means the name exists but has no record of the type you asked for: a domain with only an A record answers MX queries this way, and querying example.com when the record lives on [www.example.com](http://www.example.com) does too. SERVFAIL usually points at the resolver, often a DNSSEC validation failure; retry with +cd to skip validation, or run dig +trace to see where the chain breaks.
 
 ---
-Källa: https://sshworkbench.com/cheatsheets/dig
+Source: https://sshworkbench.com/cheatsheets/dig

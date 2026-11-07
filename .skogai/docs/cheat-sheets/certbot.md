@@ -2,44 +2,24 @@
 
 Certbot is the standard client for getting free Let's Encrypt TLS certificates and renewing them on a schedule. This sheet covers the certbot commands for installing it, nginx and Apache, certonly with the standalone, webroot, and DNS challenges, wildcards, renewal, and deploy hooks.
 
-Last updated September 11, 2026
-
-On this page
-
-- [Install](#install)
-- [nginx](#nginx)
-- [Apache](#apache)
-- [certonly](#certonly)
-- [Standalone](#standalone)
-- [Webroot](#webroot)
-- [DNS Challenge](#dns-challenge)
-- [Wildcard Certificates](#wildcard-certificates)
-- [Renewal](#renewal)
-- [Add and Remove Domains](#add-and-remove-domains)
-- [List and Delete](#list-and-delete)
-- [Deploy Hooks](#deploy-hooks)
-- [Files and Logs](#files-and-logs)
-- [Windows](#windows)
-- [Account and Version](#account-and-version)
-- [Docker](#docker)
-- [Command Line Options](#command-line-options)
-- [Gotchas](#gotchas)
-
 ## Install
 
 Snap is what Certbot's own docs recommend, because it always carries the current release. Distro packages lag behind but update with the rest of the system. The plugin for your web server is a separate package either way.
 
-[TABLE]
+| Distribution / Method | Command |
+|---|---|
+| Snap (Recommended) | `sudo snap install --classic certbot && sudo ln -s /snap/bin/certbot /usr/bin/certbot` |
+| Debian / Ubuntu APT | `sudo apt install certbot python3-certbot-nginx` |
+| Arch Linux | `sudo pacman -S certbot certbot-nginx` |
+| Fedora / RHEL | `sudo dnf install certbot python3-certbot-nginx` |
 
 Without snap, a virtualenv keeps Certbot off the system Python:
 
-```
+```bash
 sudo python3 -m venv /opt/certbot
 sudo /opt/certbot/bin/pip install certbot certbot-nginx
 sudo ln -s /opt/certbot/bin/certbot /usr/bin/certbot
 ```
-
-Copy
 
 A pip or virtualenv install schedules nothing, so add the renewal cron entry yourself. Snap and distro packages both bring their own timer.
 
@@ -47,7 +27,11 @@ A pip or virtualenv install schedules nothing, so add the renewal cron entry you
 
 The nginx plugin is the usual route: it proves control of the domain, fetches the certificate, and edits the matching server block in one go. It needs an existing block whose server_name matches, which the [nginx config generator](https://sshworkbench.com/tools/nginx-config-generator) can produce.
 
-[TABLE]
+| Command | What it does |
+|---|---|
+| `sudo certbot --nginx -d example.com -d www.example.com` | Obtain cert and configure Nginx automatically with HTTPS |
+| `sudo certbot --nginx certonly -d example.com` | Obtain certificate using Nginx plugin without modifying configs |
+| `sudo certbot renew --dry-run` | Test automated renewal process |
 
 Confirm the result from outside with the [SSL checker](https://sshworkbench.com/tools/ssl-checker).
 
@@ -75,7 +59,7 @@ certonly obtains or renews a certificate without touching any web server config;
 | sudo certbot certonly --webroot -w /var/www/html -d example.com | Drop challenge files into an existing site |
 | --cert-name mysite | Name the certificate instead of using the first domain |
 
-The files land in /etc/letsencrypt/live/\<name\>/ as fullchain.pem and privkey.pem. Inspect what you got with the [certificate decoder](https://sshworkbench.com/tools/certificate-decoder) or openssl x509 -text from the [OpenSSL cheat sheet](https://sshworkbench.com/cheatsheets/openssl).
+The files land in /etc/letsencrypt/live/<name>/ as fullchain.pem and privkey.pem. Inspect what you got with the [certificate decoder](https://sshworkbench.com/tools/certificate-decoder) or openssl x509 -text from the [OpenSSL cheat sheet](https://sshworkbench.com/cheatsheets/openssl).
 
 ## Standalone
 
@@ -89,12 +73,10 @@ Standalone binds its own listener on port 80, so it works on machines with no we
 
 If a web server owns port 80, stop it around the run and restart it after:
 
-```
+```bash
 sudo certbot certonly --standalone -d mail.example.com \
   --pre-hook "systemctl stop nginx" --post-hook "systemctl start nginx"
 ```
-
-Copy
 
 Certbot remembers the hooks and reuses them at renewal, so the stop-start happens automatically from then on.
 
@@ -102,17 +84,18 @@ Certbot remembers the hooks and reuses them at renewal, so the stop-start happen
 
 Webroot never takes the site down: certbot writes the challenge into .well-known/acme-challenge/ under the directory you name, and Let's Encrypt fetches it over plain HTTP.
 
-[TABLE]
+| Command | What it does |
+|---|---|
+| `sudo certbot certonly --webroot -w /var/www/html -d example.com` | Issue cert using ACME HTTP-01 challenge placed in webroot |
+| `sudo certbot certonly --webroot -w /var/www/site1 -d site1.com -w /var/www/site2 -d site2.com` | Specify distinct webroot directories for multiple domains |
 
 One certificate for several sites, each with its own root:
 
-```
+```bash
 sudo certbot certonly --webroot \
   -w /var/www/html -d example.com -d www.example.com \
   -w /var/www/blog -d blog.example.com
 ```
-
-Copy
 
 The path must be served over HTTP without a redirect to somewhere the challenge is not. A 404 on /.well-known/acme-challenge/... during the run means -w points at the wrong directory.
 
@@ -129,29 +112,28 @@ The dns-01 challenge proves control with a TXT record, so it needs no open port 
 
 Manual, for a one-off certificate:
 
-```
+```bash
 sudo certbot certonly --manual --preferred-challenges dns -d example.com
 ```
-
-Copy
 
 Certbot prints the TXT value, you add it at your DNS host, wait for it to propagate, and press Enter. A manual certificate cannot renew unattended unless you also supply --manual-auth-hook.
 
 Automated, with a provider plugin and an API credentials file (chmod 600):
 
-```
+```bash
 sudo certbot certonly --dns-cloudflare \
   --dns-cloudflare-credentials ~/.secrets/cloudflare.ini \
   -d example.com
 ```
 
-Copy
-
 Slow DNS host? Add --dns-cloudflare-propagation-seconds 60 (each plugin has its own version of the flag).
 
-Every plugin follows the same three-part pattern: a package, a --dns-\<provider\> flag, and a credentials file.
+Every plugin follows the same three-part pattern: a package, a --dns-<provider> flag, and a credentials file.
 
-[TABLE]
+| Command | What it does |
+|---|---|
+| `sudo certbot certonly --manual --preferred-challenges dns -d "*.example.com" -d example.com` | Manual DNS TXT record challenge (required for wildcards) |
+| `sudo certbot certonly --dns-cloudflare --dns-cloudflare-credentials cf.ini -d "*.example.com"` | Automated wildcard renewal using Cloudflare DNS API plugin |
 
 Registrars with no official plugin, GoDaddy, Namecheap and Porkbun among them, have community plugins on PyPI, or you can delegate \_acme-challenge with a CNAME to a provider that does have one.
 
@@ -159,29 +141,15 @@ Registrars with no official plugin, GoDaddy, Namecheap and Porkbun among them, h
 
 Wildcards come only from the DNS challenge above.
 
-```
+```bash
 sudo certbot certonly --manual --preferred-challenges dns \
   -d example.com -d "*.example.com"
 ```
 
-Copy
-
-- Quote
-  \*.example.com
-  so the shell does not try to expand it.
-- Include the bare domain:
-  \*.example.com
-  does not cover
-  example.com
-  .
-- A wildcard covers one level only:
-  app.example.com
-  yes,
-  a.b.example.com
-  no.
-- For automatic renewal, use a DNS plugin instead of
-  --manual
-  .
+- Quote *.example.com so the shell does not try to expand it.
+- Include the bare domain: *.example.com does not cover example.com.
+- A wildcard covers one level only: app.example.com yes, a.b.example.com no.
+- For automatic renewal, use a DNS plugin instead of --manual.
 
 ## Renewal
 
@@ -212,17 +180,18 @@ There is no "add domain" subcommand. You reissue the certificate with the full l
 
 Get the current name list before you edit it, since leaving a domain out of the reissue removes it:
 
-```
+```bash
 sudo certbot certificates --cert-name example.com
 ```
-
-Copy
 
 The live directory keeps its original name, so /etc/letsencrypt/live/example.com/ stays correct in nginx or Apache no matter which domains you add.
 
 ## List and Delete
 
-[TABLE]
+| Command | What it does |
+|---|---|
+| `sudo certbot certificates` | List all certificates managed by Certbot, expiry dates, and domains |
+| `sudo certbot delete --cert-name example.com` | Delete certificate files and renewal configuration |
 
 delete does not touch your web server config. Remove the ssl_certificate lines that point at the deleted files first, or nginx refuses to start on the next reload.
 
@@ -230,24 +199,39 @@ delete does not touch your web server config. Remove the ssl_certificate lines t
 
 Nginx and Apache load certificate files at startup and never look again, so a renewed file on disk changes nothing until a reload. A deploy hook runs after each successful issue or renewal, which is exactly the moment for it.
 
-[TABLE]
+| Command / Hook | Description |
+|---|---|
+| `sudo certbot renew --deploy-hook "systemctl reload nginx"` | Command executed only after a certificate successfully renews |
+| `/etc/letsencrypt/renewal-hooks/deploy/` | Drop executable scripts here to run automatically on renewal |
+| `/etc/letsencrypt/renewal-hooks/pre/` | Scripts run before attempting renewal (e.g. stop daemon) |
+| `/etc/letsencrypt/renewal-hooks/post/` | Scripts run after renewal attempts finish |
 
 Add a hook to an existing certificate without reissuing it:
 
-```
+```bash
 sudo certbot reconfigure --cert-name example.com \
   --deploy-hook "systemctl reload nginx"
 ```
-
-Copy
 
 ## Files and Logs
 
 Everything Certbot owns lives under /etc/letsencrypt/, and every run appends to one log file. That log carries the real ACME error text, which is usually far more specific than what the terminal printed.
 
-[TABLE]
+| File / Path | Contents |
+|---|---|
+| `/etc/letsencrypt/live/<domain>/fullchain.pem` | Certificate + Intermediate CA chain (use this in web servers) |
+| `/etc/letsencrypt/live/<domain>/privkey.pem` | Private key for the certificate (keep secure) |
+| `/etc/letsencrypt/live/<domain>/cert.pem` | Server certificate only (without intermediate CA) |
+| `/etc/letsencrypt/live/<domain>/chain.pem` | Intermediate CA chain only |
+| `/var/log/letsencrypt/letsencrypt.log` | Detailed debug logs for troubleshooting failures |
 
-[TABLE]
+| File / Path | Contents |
+|---|---|
+| `/etc/letsencrypt/live/<domain>/fullchain.pem` | Certificate + Intermediate CA chain (use this in web servers) |
+| `/etc/letsencrypt/live/<domain>/privkey.pem` | Private key for the certificate (keep secure) |
+| `/etc/letsencrypt/live/<domain>/cert.pem` | Server certificate only (without intermediate CA) |
+| `/etc/letsencrypt/live/<domain>/chain.pem` | Intermediate CA chain only |
+| `/var/log/letsencrypt/letsencrypt.log` | Detailed debug logs for troubleshooting failures |
 
 Back up /etc/letsencrypt/ as a whole, with symlinks preserved (tar -czphf), or the restored copy points nowhere. See the [tar cheat sheet](https://sshworkbench.com/cheatsheets/tar).
 
@@ -255,7 +239,10 @@ Back up /etc/letsencrypt/ as a whole, with symlinks preserved (tar -czphf), or t
 
 Certbot no longer ships a native Windows build; EFF stopped producing the Windows installer during the 2.x series, and the old beta .exe downloads are unsupported. Three options remain.
 
-[TABLE]
+| Method | Details |
+|---|---|
+| Official Certbot for Windows | MSI installer package installs Certbot CLI on Windows |
+| `win-acme` | Popular Windows ACME client with native IIS integration |
 
 IIS wants a .pfx, not the .pem pair, so convert with openssl pkcs12 -export -out cert.pfx -inkey privkey.pem -in fullchain.pem from the [OpenSSL cheat sheet](https://sshworkbench.com/cheatsheets/openssl).
 
@@ -263,9 +250,9 @@ IIS wants a .pfx, not the .pem pair, so convert with openssl pkcs12 -export -out
 
 | Command | What it does |
 |----|----|
-| sudo certbot register -m [\[email protected\]](https://sshworkbench.com/cdn-cgi/l/email-protection) --agree-tos | Create a Let's Encrypt account (normally happens on first run) |
+| sudo certbot register -m git@github.com --agree-tos | Create a Let's Encrypt account (normally happens on first run) |
 | sudo certbot show_account | Show the account this machine uses |
-| sudo certbot update_account -m [\[email protected\]](https://sshworkbench.com/cdn-cgi/l/email-protection) | Change the contact email for expiry warnings |
+| sudo certbot update_account -m git@github.com | Change the contact email for expiry warnings |
 | sudo certbot unregister | Deactivate the account |
 | certbot --version | Print the installed version |
 | certbot --help all | The full option reference |
@@ -275,23 +262,19 @@ IIS wants a .pfx, not the .pem pair, so convert with openssl pkcs12 -export -out
 
 The official image is certbot/certbot, and its entrypoint is certbot itself, so everything after the image name is a normal certbot command. Mount /etc/letsencrypt or the certificates die with the container.
 
-```
+```bash
 docker run -it --rm -p 80:80 \
   -v /etc/letsencrypt:/etc/letsencrypt \
   certbot/certbot certonly --standalone -d example.com
 ```
 
-Copy
-
 Renewal is the same image with renew; there is no timer inside a container, so schedule it yourself from host cron:
 
-```
+```bash
 docker run --rm -p 80:80 \
   -v /etc/letsencrypt:/etc/letsencrypt \
   certbot/certbot renew
 ```
-
-Copy
 
 | Image | What it is |
 |----|----|
@@ -302,43 +285,22 @@ For webroot next to an nginx container, mount the same volume in both containers
 
 ## Command Line Options
 
-[TABLE]
+| Flag | Meaning | Description |
+|---|---|---|
+| `--dry-run` | Simulation | Test acquisition/renewal without touching production certs or hitting rate limits |
+| `--force-renewal` | Force Renew | Renew certificate even if it is not close to expiration |
+| `--non-interactive` | Headless | Run without interactive prompts (required for cron/scripts) |
+| `--agree-tos` | Terms of Service | Automatically agree to ACME subscriber agreement |
+| `-m email` | Email | Specify account registration email for expiration notices |
 
 ## Gotchas
 
-- Let's Encrypt rate limits are real: five identical certificates per week. Test with
-  --dry-run
-  or
-  --staging
-  , and never put
-  --force-renewal
-  in cron.
-- After a
-  certonly
-  renewal your server still serves the old certificate until it reloads. If the [SSL checker](https://sshworkbench.com/tools/ssl-checker) shows an expired certificate but
-  certbot certificates
-  shows a fresh one, the missing piece is a deploy hook.
-- Everything in
-  /etc/letsencrypt/live/
-  is a symlink. Point your config there and never copy the files out; copies stop updating.
-- The HTTP challenge needs port 80 reachable from the internet. A closed firewall gives "Timeout during connect"; open it with
-  ufw allow 80/tcp
-  ([UFW cheat sheet](https://sshworkbench.com/cheatsheets/ufw)) and confirm from outside with the [port checker](https://sshworkbench.com/tools/ssh-port-checker). Behind Cloudflare or another CDN, use the DNS challenge instead.
-- Failed validations have their own limit, five per account, hostname and hour. Retrying a broken challenge in a loop earns "too many failed authorizations recently" and an hour of lockout, so read
-  /var/log/letsencrypt/letsencrypt.log
-  and fix the cause between attempts.
-- certbot-auto
-  and
-  letsencrypt-auto
-  are long dead. Install from your package manager or snap (
-  sudo snap install --classic certbot
-  ).
-
-### Stop memorizing commands
-
-SSH Workbench puts the common server tasks behind buttons: services, Docker, files, cron, firewall. The terminal is still there when you want it.
-
-[Try free for 7 days](https://sshworkbench.com/#install)
+- Let's Encrypt rate limits are real: five identical certificates per week. Test with --dry-run or --staging, and never put --force-renewal in cron.
+- After a certonly renewal your server still serves the old certificate until it reloads. If the [SSL checker](https://sshworkbench.com/tools/ssl-checker) shows an expired certificate but certbot certificates shows a fresh one, the missing piece is a deploy hook.
+- Everything in /etc/letsencrypt/live/ is a symlink. Point your config there and never copy the files out; copies stop updating.
+- The HTTP challenge needs port 80 reachable from the internet. A closed firewall gives "Timeout during connect"; open it with ufw allow 80/tcp ([UFW cheat sheet](https://sshworkbench.com/cheatsheets/ufw)) and confirm from outside with the [port checker](https://sshworkbench.com/tools/ssh-port-checker). Behind Cloudflare or another CDN, use the DNS challenge instead.
+- Failed validations have their own limit, five per account, hostname and hour. Retrying a broken challenge in a loop earns "too many failed authorizations recently" and an hour of lockout, so read /var/log/letsencrypt/letsencrypt.log and fix the cause between attempts.
+- certbot-auto and letsencrypt-auto are long dead. Install from your package manager or snap ( sudo snap install --classic certbot).
 
 ## Certbot FAQ
 
@@ -356,11 +318,11 @@ Re-run certbot with the complete domain list and pin the certificate name: sudo 
 
 ### How do I run a command after Certbot renews a certificate?
 
-Attach a deploy hook: sudo certbot certonly --webroot -w /var/www/html -d example.com --deploy-hook 'systemctl reload nginx'. Certbot saves the hook in the certificate's renewal config and runs it after every successful renewal of that certificate, which is exactly when nginx or Apache needs a reload to pick up the new file. To run something for every certificate on the machine, drop an executable script into /etc/letsencrypt/renewal-hooks/deploy/ instead. Inside a hook, \$RENEWED_LINEAGE holds the live directory path. Note that renew --dry-run skips deploy hooks unless you add --run-deploy-hooks.
+Attach a deploy hook: sudo certbot certonly --webroot -w /var/www/html -d example.com --deploy-hook 'systemctl reload nginx'. Certbot saves the hook in the certificate's renewal config and runs it after every successful renewal of that certificate, which is exactly when nginx or Apache needs a reload to pick up the new file. To run something for every certificate on the machine, drop an executable script into /etc/letsencrypt/renewal-hooks/deploy/ instead. Inside a hook, $RENEWED_LINEAGE holds the live directory path. Note that renew --dry-run skips deploy hooks unless you add --run-deploy-hooks.
 
 ### Where does Certbot store certificates?
 
-Under /etc/letsencrypt/live/\<cert-name\>/, where fullchain.pem and privkey.pem are the two files a web server needs. They are symlinks into /etc/letsencrypt/archive/, and renewal repoints them at the newest version, so reference the live paths in your config and never copy the files somewhere else or they will silently go stale. Renewal settings live in /etc/letsencrypt/renewal/\<cert-name\>.conf, global defaults in /etc/letsencrypt/cli.ini, and the log of every run in /var/log/letsencrypt/letsencrypt.log. sudo certbot certificates prints every certificate with its domains, expiry date, and paths.
+Under /etc/letsencrypt/live/<cert-name>/, where fullchain.pem and privkey.pem are the two files a web server needs. They are symlinks into /etc/letsencrypt/archive/, and renewal repoints them at the newest version, so reference the live paths in your config and never copy the files somewhere else or they will silently go stale. Renewal settings live in /etc/letsencrypt/renewal/<cert-name>.conf, global defaults in /etc/letsencrypt/cli.ini, and the log of every run in /var/log/letsencrypt/letsencrypt.log. sudo certbot certificates prints every certificate with its domains, expiry date, and paths.
 
 ---
-Källa: https://sshworkbench.com/cheatsheets/certbot
+Source: https://sshworkbench.com/cheatsheets/certbot

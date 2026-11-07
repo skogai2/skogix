@@ -2,29 +2,17 @@
 
 OpenSSL is the command line toolkit behind most TLS work on Linux, macOS, and Windows (it ships with Git for Windows). This sheet covers the openssl commands you actually type: reading and checking certificates, generating keys and CSRs, converting between PEM, DER, and PFX, and the odd hashing and encryption jobs.
 
-Last updated September 11, 2026
-
-On this page
-
-- [Inspect a Certificate](#inspect-a-certificate)
-- [Check a Live Server](#check-a-live-server)
-- [Generate Keys](#generate-keys)
-- [Create a CSR](#create-a-csr)
-- [Self-Signed Certificate](#self-signed-certificate)
-- [Convert Formats](#convert-formats)
-- [Verify Chain and Key Match](#verify-chain-and-key-match)
-- [CRL and OCSP](#crl-and-ocsp)
-- [Create a CA](#create-a-ca)
-- [Hash, Encrypt, Random](#hash-encrypt-random)
-- [Ciphers and Providers](#ciphers-and-providers)
-- [Install and Version](#install-and-version)
-- [Gotchas](#gotchas)
-
 ## Inspect a Certificate
 
 -noout stops OpenSSL echoing the PEM block after the fields you asked for. For a paste-and-read version, use the [certificate decoder](https://sshworkbench.com/tools/certificate-decoder).
 
-[TABLE]
+| Command | What it does |
+|---|---|
+| `openssl x509 -in cert.pem -text -noout` | Print full certificate details (subject, issuer, SANs, validity) |
+| `openssl x509 -in cert.pem -dates -noout` | Display certificate start (`notBefore`) and expiry (`notAfter`) dates |
+| `openssl x509 -in cert.pem -subject -noout` | Print subject common name and organization |
+| `openssl x509 -in cert.pem -fingerprint -sha256 -noout` | Compute SHA-256 certificate fingerprint |
+| `openssl x509 -in cert.pem -ext subjectAltName -noout` | Extract Subject Alternative Names (SANs) |
 
 Read every certificate in a chain file, not just the first:
 
@@ -32,13 +20,16 @@ Read every certificate in a chain file, not just the first:
 openssl crl2pkcs7 -nocrl -certfile fullchain.pem | openssl pkcs7 -print_certs -noout
 ```
 
-Copy
-
 ## Check a Live Server
 
-s_client opens a TLS connection and prints the handshake. Always pass -servername (SNI), or a host serving several sites hands you the default certificate instead of the one you wanted. The \</dev/null closes the session instead of leaving it waiting for input. The [SSL checker](https://sshworkbench.com/tools/ssl-checker) runs the same check from a browser.
+s_client opens a TLS connection and prints the handshake. Always pass -servername (SNI), or a host serving several sites hands you the default certificate instead of the one you wanted. The </dev/null closes the session instead of leaving it waiting for input. The [SSL checker](https://sshworkbench.com/tools/ssl-checker) runs the same check from a browser.
 
-[TABLE]
+| Command | What it does |
+|---|---|
+| `openssl s_client -connect example.com:443 -servername example.com` | Connect over TLS with SNI and display full certificate chain |
+| `openssl s_client -connect host:443 </dev/null \| openssl x509 -dates -noout` | Quick check of remote server expiry date |
+| `openssl s_client -starttls smtp -connect mail.example.com:587` | Test STARTTLS on SMTP mail server |
+| `openssl s_client -tls1_3 -connect example.com:443` | Test TLS 1.3 connection support |
 
 Print just the dates or the subject of the live certificate:
 
@@ -47,15 +38,11 @@ openssl s_client -connect example.com:443 -servername example.com </dev/null 2>/
 openssl s_client -connect example.com:443 -servername example.com </dev/null 2>/dev/null | openssl x509 -noout -subject -issuer
 ```
 
-Copy
-
 Save the live certificate to a file:
 
 ```
 openssl s_client -connect example.com:443 -servername example.com </dev/null 2>/dev/null | openssl x509 -out example.pem
 ```
-
-Copy
 
 Look for Verify return code: 0 (ok) at the bottom of the output. 21 (unable to verify the first certificate) means the server is not sending its intermediate. curl -vI https://example.com shows the same verdict in fewer lines; see the [curl cheat sheet](https://sshworkbench.com/cheatsheets/curl).
 
@@ -63,7 +50,11 @@ Look for Verify return code: 0 (ok) at the bottom of the output. 21 (unable to v
 
 genpkey is the current all-purpose generator. genrsa still works in OpenSSL 3 and is not going anywhere soon. For SSH login keys, use ssh-keygen instead, or the [SSH key generator](https://sshworkbench.com/tools/ssh-keygen).
 
-[TABLE]
+| Command | Key Type | Description |
+|---|---|---|
+| `openssl genpkey -algorithm ED25519 -out key.pem` | Ed25519 | Modern, fast, and highly secure private key |
+| `openssl genrsa -out key.pem 4096` | RSA 4096 | Standard 4096-bit RSA private key |
+| `openssl ecparam -name prime256v1 -genkey -out key.pem` | ECDSA | Elliptic Curve key (P-256) |
 
 PuTTY cannot read these keys directly. The [PEM to PPK converter](https://sshworkbench.com/tools/pem-to-ppk-converter) and [PPK to PEM converter](https://sshworkbench.com/tools/ppk-to-pem-converter) go both ways.
 
@@ -88,8 +79,6 @@ openssl req -new -key key.pem -out req.csr \
   -addext "subjectAltName=DNS:example.com,DNS:www.example.com"
 ```
 
-Copy
-
 -addext needs OpenSSL 1.1.1 or newer. On older builds, put the SANs in a config file and pass -config san.cnf.
 
 ## Self-Signed Certificate
@@ -100,8 +89,6 @@ For local development, internal services, and anything that will never face a pu
 openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365 -nodes \
   -subj "/CN=example.com" -addext "subjectAltName=DNS:example.com,DNS:localhost,IP:127.0.0.1"
 ```
-
-Copy
 
 | Command | What it does |
 |----|----|
@@ -116,7 +103,12 @@ Copy
 
 The extension tells you very little. .pem, .crt, .cer, and .key are usually PEM (text starting with -----BEGIN), .der and sometimes .cer are binary DER, and .pfx and .p12 are PKCS#12 bundles. Run head -1 file before converting.
 
-[TABLE]
+| Conversion | Command |
+|---|---|
+| PEM to DER (binary) | `openssl x509 -in cert.pem -outform der -out cert.der` |
+| DER to PEM | `openssl x509 -in cert.der -inform der -out cert.pem` |
+| PKCS#12 / PFX export | `openssl pkcs12 -export -out cert.pfx -inkey key.pem -in cert.pem` |
+| PKCS#12 extraction | `openssl pkcs12 -in cert.pfx -out bundle.pem -nodes` |
 
 OpenSSL cannot read a Java keystore at all. Convert the .jks to a .p12 with keytool from the JDK, as above, then run it through the pkcs12 rows to get PEM. Going back, build a PFX with pkcs12 -export and import it the same way with -srcstoretype PKCS12.
 
@@ -126,8 +118,6 @@ If OpenSSL 3 refuses an old PFX with unsupported or digital envelope routines, t
 openssl pkcs12 -in old.pfx -out cert.pem -nodes -legacy
 openssl pkcs12 -export -legacy -out cert.pfx -inkey key.pem -in cert.pem -certfile chain.pem
 ```
-
-Copy
 
 ## Verify Chain and Key Match
 
@@ -149,13 +139,14 @@ Check that a full-chain file is in the right order (leaf first, then each issuer
 openssl crl2pkcs7 -nocrl -certfile fullchain.pem | openssl pkcs7 -print_certs -noout
 ```
 
-Copy
-
 Each certificate's issuer should be the next certificate's subject. To tell whether two files hold the same certificate, compare -fingerprint -sha256 on each rather than diffing the PEM, since the same certificate can be stored with different line endings.
 
 When verify or s_client fails, the number in Verify return code says what went wrong:
 
-[TABLE]
+| Check | Command | Match Condition |
+|---|---|---|
+| Private Key matches Cert | `openssl x509 -noout -modulus -in cert.pem \| md5sum`<br>`openssl rsa -noout -modulus -in key.pem \| md5sum` | Hashes must match exactly |
+| Validate Cert against CA | `openssl verify -CAfile ca_bundle.pem cert.pem` | Outputs `cert.pem: OK` |
 
 Codes 20 and 21 are the two you will actually meet in production, and both are server-side: the fix is to serve the full chain (fullchain.pem, not cert.pem), not to add anything on the client. The [SSL checker](https://sshworkbench.com/tools/ssl-checker) reports the same missing-intermediate problem in plain words.
 
@@ -163,7 +154,10 @@ Codes 20 and 21 are the two you will actually meet in production, and both are s
 
 Whether a certificate has been revoked is a separate question from whether it verifies.
 
-[TABLE]
+| Command | Purpose |
+|---|---|
+| `openssl crl -in crl.pem -text -noout` | Inspect Certificate Revocation List contents |
+| `openssl ocsp -issuer ca.pem -cert cert.pem -url <OCSP_URL>` | Query live OCSP responder to verify certificate revocation status |
 
 Revoking a certificate you issued yourself needs the ca subcommand and its database, not x509:
 
@@ -172,9 +166,7 @@ openssl ca -config ca.cnf -revoke server.crt
 openssl ca -config ca.cnf -gencrl -out crl.pem
 ```
 
-Copy
-
--revoke takes the certificate file. If you only have a serial number, the copy is in newcerts/\<serial\>.pem under the directory your config's new_certs_dir names, and index.txt lists every serial with its status.
+-revoke takes the certificate file. If you only have a serial number, the copy is in newcerts/<serial>.pem under the directory your config's new_certs_dir names, and index.txt lists every serial with its status.
 
 ## Create a CA
 
@@ -194,15 +186,23 @@ openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key -CAcreateserial \
   -out server.crt -days 825 -copy_extensions copy
 ```
 
-Copy
-
-[TABLE]
+| Step | Command | Action |
+|---|---|---|
+| 1. Root Key & Cert | `openssl req -x509 -newkey rsa:4096 -keyout ca.key -out ca.crt -days 3650 -nodes -subj "/CN=Internal CA"` | Generate self-signed Root CA valid for 10 years |
+| 2. Server Key & CSR | `openssl req -newkey rsa:2048 -nodes -keyout srv.key -out srv.csr -subj "/CN=internal.corp"` | Generate private key and CSR for server |
+| 3. Sign Certificate | `openssl x509 -req -in srv.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out srv.crt -days 365` | Sign server CSR using private Root CA |
 
 Trust the root on a client: sudo cp ca.crt /usr/local/share/ca-certificates/ && sudo update-ca-certificates on Debian and Ubuntu, sudo trust anchor ca.crt on Fedora and RHEL, and Keychain Access on macOS.
 
 ## Hash, Encrypt, Random
 
-[TABLE]
+| Action | Command |
+|---|---|
+| Calculate SHA-256 checksum | `openssl dgst -sha256 file.iso` |
+| Generate secure random password | `openssl rand -base64 24` |
+| Generate random hex token | `openssl rand -hex 32` |
+| Encrypt file with AES-256 | `openssl enc -aes-256-cbc -salt -in plain.txt -out secret.enc` |
+| Decrypt file with AES-256 | `openssl enc -d -aes-256-cbc -in secret.enc -out plain.txt` |
 
 Always pass -pbkdf2 to enc. Without it OpenSSL derives the key with a single MD5 round and warns you about it. Files encrypted without -pbkdf2 must be decrypted without it too.
 
@@ -210,7 +210,10 @@ openssl passwd -apr1 covers one user at a time. For a whole file, the [htpasswd 
 
 ## Ciphers and Providers
 
-[TABLE]
+| Command | Purpose |
+|---|---|
+| `openssl ciphers -v 'HIGH:!aNULL'` | List all cipher suites matching specification |
+| `openssl list -providers` | Display active cryptographic providers in OpenSSL 3 |
 
 OpenSSL 3 moved the old algorithms (RC2, RC4, DES, MD2, and the ciphers inside old PFX files) into a separate legacy provider that is not loaded by default. That is what unsupported, digital envelope routines, and error:0308010C mean. Load it for one command:
 
@@ -218,117 +221,39 @@ OpenSSL 3 moved the old algorithms (RC2, RC4, DES, MD2, and the ciphers inside o
 openssl <subcommand> -provider legacy -provider default ...
 ```
 
-Copy
-
 openssl list -providers confirms whether it loaded. -legacy on pkcs12 is a shorthand for the same thing.
 
 ## Install and Version
 
-[TABLE]
+| Command | Action |
+|---|---|
+| `openssl version -a` | Print OpenSSL version, compile flags, and directory paths |
+| `sudo apt install openssl` | Install / update OpenSSL on Debian/Ubuntu |
+| `sudo pacman -S openssl` | Install / update on Arch Linux |
 
 Windows has no openssl.exe of its own, so 'openssl' is not recognized usually means PATH, not a missing install. Git for Windows already ships one at C:\Program Files\Git\usr\bin\openssl.exe, which works as-is inside Git Bash. On macOS, openssl version printing LibreSSL 3.x means you are on Apple's build, which is missing -legacy and, in older releases, -addext; Homebrew installs the real thing but leaves it off PATH, so call /opt/homebrew/opt/openssl@3/bin/openssl or add that directory yourself.
 
 ## Gotchas
 
-- Forget
-  -noout
-  and
-  x509
-  prints the fields you asked for and then the whole PEM block again. Harmless, but it fills the screen.
-- s_client
-  without
-  -servername
-  gets the server's default certificate, which on a shared host is a different site's. Without
-  \</dev/null
-  it sits there waiting for you to type an HTTP request;
-  Ctrl+C
-  or
-  Q
-  ends it. In PowerShell, use
-  echo "" \| openssl s_client ...
-  since
-  \</dev/null
-  does not exist there.
-- The modulus trick only compares RSA keys. For EC and Ed25519, hash the
-  -pubkey
-  output instead, as shown above.
-- Chrome, Firefox, and Safari ignore the CN entirely. A certificate without a
-  subjectAltName
-  matching the hostname is rejected even when the CN is right, so always pass
-  -addext "subjectAltName=..."
-  .
-- OpenSSL 3 changed a few defaults:
-  pkcs12 -export
-  uses AES-256 and SHA-256 (old Windows and Java need
-  -legacy
-  ), reading an old PFX needs
-  -legacy
-  ,
-  -nodes
-  is now
-  -noenc
-  , and
-  genrsa
-  is fine but
-  genpkey
-  is the documented path.
-  openssl version
-  tells you which you have.
-- Can't open config file: /usr/local/ssl/openssl.cnf
-  comes up on Windows when the binary looks where it was compiled to look.
-  openssl version -d
-  prints that path; point
-  OPENSSL_CONF
-  at the
-  openssl.cnf
-  your install actually shipped, for example
-  set OPENSSL_CONF=C:\Program Files\OpenSSL-Win64\bin\openssl.cnf
-  . Only
-  req
-  and
-  ca
-  need the config, so other commands work fine without it.
-- unable to write 'random state'
-  is an old 1.0.2 build failing to write
-  .rnd
-  into a home directory it cannot find. Set
-  RANDFILE
-  to a path you can write, or upgrade; OpenSSL 1.1.1 and later do not use that file.
-- .crt
-  ,
-  .cer
-  ,
-  .pem
-  , and
-  .key
-  are naming conventions, not formats. When a command says
-  unable to load certificate
-  , check
-  head -1
-  and add
-  -inform DER
-  if the file is binary.
-- A key file from OpenSSL is not a PuTTY
-  .ppk
-  , and a
-  .ppk
-  is not a PEM. The [PEM to PPK](https://sshworkbench.com/tools/pem-to-ppk-converter) and [PPK to PEM](https://sshworkbench.com/tools/ppk-to-pem-converter) converters handle both directions.
-
-### Stop memorizing commands
-
-SSH Workbench puts the common server tasks behind buttons: services, Docker, files, cron, firewall. The terminal is still there when you want it.
-
-[Try free for 7 days](https://sshworkbench.com/#install)
+- Forget -noout and x509 prints the fields you asked for and then the whole PEM block again. Harmless, but it fills the screen.
+- s_client without -servername gets the server's default certificate, which on a shared host is a different site's. Without </dev/null it sits there waiting for you to type an HTTP request; Ctrl+C or Q ends it. In PowerShell, use echo "" \| openssl s_client ... since </dev/null does not exist there.
+- The modulus trick only compares RSA keys. For EC and Ed25519, hash the -pubkey output instead, as shown above.
+- Chrome, Firefox, and Safari ignore the CN entirely. A certificate without a subjectAltName matching the hostname is rejected even when the CN is right, so always pass -addext "subjectAltName=...".
+- OpenSSL 3 changed a few defaults: pkcs12 -export uses AES-256 and SHA-256 (old Windows and Java need -legacy), reading an old PFX needs -legacy, -nodes is now -noenc, and genrsa is fine but genpkey is the documented path. openssl version tells you which you have.
+- Can't open config file: /usr/local/ssl/openssl.cnf comes up on Windows when the binary looks where it was compiled to look. openssl version -d prints that path; point OPENSSL_CONF at the openssl.cnf your install actually shipped, for example set OPENSSL_CONF=C:\Program Files\OpenSSL-Win64\bin\openssl.cnf. Only req and ca need the config, so other commands work fine without it.
+- unable to write 'random state' is an old 1.0.2 build failing to write.rnd into a home directory it cannot find. Set RANDFILE to a path you can write, or upgrade; OpenSSL 1.1.1 and later do not use that file.
+- .crt,.cer,.pem, and.key are naming conventions, not formats. When a command says unable to load certificate, check head -1 and add -inform DER if the file is binary.
+- A key file from OpenSSL is not a PuTTY.ppk, and a.ppk is not a PEM. The [PEM to PPK](https://sshworkbench.com/tools/pem-to-ppk-converter) and [PPK to PEM](https://sshworkbench.com/tools/ppk-to-pem-converter) converters handle both directions.
 
 ## OpenSSL FAQ
 
 ### Does Windows come with OpenSSL?
 
-No. Windows has its own TLS stack (Schannel) and ships no openssl.exe, so the first thing most people see is 'openssl' is not recognized as an internal or external command. You may still have a copy: Git for Windows installs one at C:\Program Files\Git\usr\bin\openssl.exe that works as-is inside Git Bash. Otherwise install it with winget install --id ShiningLight.OpenSSL.Light or choco install openssl, then reopen the terminal so PATH refreshes. Two things then behave differently from Linux. PowerShell has no \</dev/null, so end an s_client command with echo "" \| openssl s_client ... instead. And Git Bash rewrites a -subj "/CN=example.com" argument into a Windows path, so prefix that command with MSYS_NO_PATHCONV=1.
+No. Windows has its own TLS stack (Schannel) and ships no openssl.exe, so the first thing most people see is 'openssl' is not recognized as an internal or external command. You may still have a copy: Git for Windows installs one at C:\Program Files\Git\usr\bin\openssl.exe that works as-is inside Git Bash. Otherwise install it with winget install --id ShiningLight.OpenSSL.Light or choco install openssl, then reopen the terminal so PATH refreshes. Two things then behave differently from Linux. PowerShell has no </dev/null, so end an s_client command with echo "" \| openssl s_client ... instead. And Git Bash rewrites a -subj "/CN=example.com" argument into a Windows path, so prefix that command with MSYS_NO_PATHCONV=1.
 
 ### How do I check a certificate's expiration date with OpenSSL?
 
-For a file, openssl x509 -in cert.pem -noout -enddate prints the notAfter line, and -dates prints both ends. For a script, openssl x509 -in cert.pem -noout -checkend 2592000 exits 1 if the certificate expires within 30 days (the number is seconds), so it slots into cron or a health check without parsing dates. For a live site, pipe s_client into the same command: openssl s_client -connect example.com:443 -servername example.com \</dev/null 2\>/dev/null \| openssl x509 -noout -enddate.
+For a file, openssl x509 -in cert.pem -noout -enddate prints the notAfter line, and -dates prints both ends. For a script, openssl x509 -in cert.pem -noout -checkend 2592000 exits 1 if the certificate expires within 30 days (the number is seconds), so it slots into cron or a health check without parsing dates. For a live site, pipe s_client into the same command: openssl s_client -connect example.com:443 -servername example.com </dev/null 2>/dev/null \| openssl x509 -noout -enddate.
 
 ### How do I check that a private key matches a certificate?
 
@@ -343,4 +268,4 @@ A PFX (PKCS#12) is one password-protected file holding the private key, the cert
 People asking this almost always mean removing the passphrase, not decrypting ciphertext. openssl pkey -in key.pem -out key-nopass.pem prompts for the current passphrase and writes the same key without one (openssl rsa -in key.pem -out key-nopass.pem does it for RSA keys). Nginx and Apache cannot start unattended with an encrypted key, which is why people do this, so treat the result like a password and keep it at chmod 600. The prompt that says Enter PEM pass phrase is asking for that passphrase, not for a new one. To go the other way, openssl pkey -in key.pem -aes256 -out key-enc.pem adds one, and generating a key with -nodes (or -noenc on OpenSSL 3) means it never asks in the first place.
 
 ---
-Källa: https://sshworkbench.com/cheatsheets/openssl
+Source: https://sshworkbench.com/cheatsheets/openssl

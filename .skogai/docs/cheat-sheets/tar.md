@@ -2,25 +2,6 @@
 
 tar bundles files into a single archive and, with one more flag, compresses it. These tar command examples cover creating, extracting and unzipping archives, tar.gz, bz2 and xz, listing and excluding files, progress output, and the tar built into Windows 10 and 11.
 
-Last updated September 11, 2026
-
-On this page
-
-- [Create an Archive](#create-an-archive)
-- [Extract an Archive](#extract-an-archive)
-- [Extract to a Directory](#extract-to-a-directory)
-- [gzip and tar.gz](#gzip-and-targz)
-- [bz2 and xz](#bz2-and-xz)
-- [Zip and Unzip](#zip-and-unzip)
-- [List Contents](#list-contents)
-- [Exclude Files](#exclude-files)
-- [Progress and Verbose](#progress-and-verbose)
-- [Permissions and Overwriting](#permissions-and-overwriting)
-- [Append to an Archive](#append-to-an-archive)
-- [Flags Explained](#flags-explained)
-- [tar on Windows 10 and 11](#tar-on-windows-10-and-11)
-- [Gotchas](#gotchas)
-
 ## Create an Archive
 
 c creates, v prints each file, f names the archive. Keep f last: the word after it is the file name.
@@ -32,7 +13,7 @@ c creates, v prints each file, f names the archive. Keep f last: the word after 
 | tar -cvf archive.tar dir1 dir2 notes.txt | Mix directories and files in one archive |
 | tar cvf archive.tar dir/ | Same command, classic Unix style without the hyphen |
 | tar -cvf archive.tar -T filelist.txt | Archive the paths listed in a file, one per line |
-| find . -name '\*.log' \| tar -cvf logs.tar -T - | Archive files another command found (see the [find cheat sheet](https://sshworkbench.com/cheatsheets/find)) |
+| find . -name '*.log' \| tar -cvf logs.tar -T - | Archive files another command found (see the [find cheat sheet](https://sshworkbench.com/cheatsheets/find)) |
 | tar -cf archive.tar --ignore-failed-read dir/ | Keep going instead of failing on a file you cannot read |
 
 ## Extract an Archive
@@ -42,7 +23,7 @@ c creates, v prints each file, f names the archive. Keep f last: the word after 
 | tar -xvf archive.tar | Extract into the current directory |
 | tar -xf archive.tar | Same, without listing every file |
 | tar -xvf archive.tar docs/readme.txt | Extract one file, named by its path as stored |
-| tar -xvf archive.tar --wildcards '\*.conf' | Extract only files matching a pattern |
+| tar -xvf archive.tar --wildcards '*.conf' | Extract only files matching a pattern |
 | tar -xzf archive.tar.gz | Extract a tar.gz |
 | tar -xf archive.tar.gz | Also fine: extraction detects the compression on its own |
 | tar -xvkf archive.tar | Keep existing files instead of overwriting them |
@@ -63,15 +44,19 @@ tar never creates the target directory, so make it first.
 
 ## gzip and tar.gz
 
-[TABLE]
+| Command | Compression | What it does |
+|---|---|---|
+| `tar -czvf archive.tar.gz dir/` | Gzip (`-z`) | Create compressed archive with gzip (`.tar.gz`, `.tgz`) |
+| `tar -xzvf archive.tar.gz` | Gzip (`-z`) | Extract gzip compressed archive |
+| `tar -cjvf archive.tar.bz2 dir/` | Bzip2 (`-j`) | Create archive with bzip2 (smaller, slower) |
+| `tar -cJvf archive.tar.xz dir/` | XZ (`-J`) | Create archive with xz (highest compression ratio) |
+| `tar -xvf archive.tar.any` | Auto-detect | Modern tar automatically detects compression format on extraction |
 
 Streaming to another machine compresses and transfers in one step, with nothing written locally:
 
-```
+```bash
 tar -czf - /var/www | ssh user@backup "cat > www-$(date +%F).tar.gz"
 ```
-
-Copy
 
 For a backup you repeat, [rsync](https://sshworkbench.com/cheatsheets/rsync) is usually the better tool: it sends only what changed.
 
@@ -101,7 +86,11 @@ On Linux, "zip a folder" almost always means make a tar.gz. Real .zip files are 
 
 ## List Contents
 
-[TABLE]
+| Command | What it does |
+|---|---|
+| `tar -tvf archive.tar.gz` | List all files inside archive in long format (permissions, owner, size) |
+| `tar -tf archive.tar.gz` | List file paths only without permissions |
+| `tar -tf archive.tar.gz "dir/file.txt"` | Check if specific file exists inside archive |
 
 ## Exclude Files
 
@@ -109,17 +98,21 @@ Quote the patterns so the shell does not expand them first.
 
 | Command | What it does |
 |----|----|
-| tar -czf site.tar.gz --exclude='\*.log' site/ | Skip files matching a pattern |
+| tar -czf site.tar.gz --exclude='*.log' site/ | Skip files matching a pattern |
 | tar -czf site.tar.gz --exclude='site/node_modules' site/ | Skip a directory, named as tar would store it |
 | tar -czf site.tar.gz --exclude-vcs site/ | Skip .git, .svn, and other VCS directories |
 | tar -czf site.tar.gz -X skip.txt site/ | Read exclude patterns from a file |
-| tar -czf site.tar.gz --exclude='\*.log' --exclude='tmp' site/ | Repeat the flag for each pattern you want gone |
+| tar -czf site.tar.gz --exclude='*.log' --exclude='tmp' site/ | Repeat the flag for each pattern you want gone |
 
 ## Progress and Verbose
 
 tar says nothing while it works unless you ask. -v names every file, which is noisy on a large archive; the alternatives below give you a pulse instead.
 
-[TABLE]
+| Command / Flag | Purpose |
+|---|---|
+| `tar -cvf ...` | `-v` displays each filename on stdout as it is processed |
+| `pv archive.tar.gz \| tar -xz` | Pipe through `pv` utility to view real-time transfer speed and progress bar |
+| `--checkpoint=10000` | Print dot every 10,000 records processed |
 
 For a real percentage and an ETA, pipe through pv and tell it the expected size:
 
@@ -127,13 +120,16 @@ For a real percentage and an ETA, pipe through pv and tell it the expected size:
 tar -czf - dir/ | pv -s "$(du -sb dir/ | cut -f1)" > backup.tar.gz
 ```
 
-Copy
-
 pv is not installed by default (apt install pv, dnf install pv, brew install pv).
 
 ## Permissions and Overwriting
 
-[TABLE]
+| Flag | Meaning | Description |
+|---|---|---|
+| `-p` | `--preserve-permissions` | Preserve file permissions upon extraction (default for root) |
+| `--same-owner` | Preserve Owner | Restore original user and group IDs (root only) |
+| `--overwrite` | Overwrite | Overwrite existing files when extracting |
+| `-k` | `--keep-old-files` | Do not overwrite existing files; keep old files intact |
 
 ## Append to an Archive
 
@@ -150,8 +146,6 @@ To add a file to a compressed archive, decompress, append, recompress:
 ```
 gzip -d archive.tar.gz && tar -rvf archive.tar extra.txt && gzip archive.tar
 ```
-
-Copy
 
 ## Flags Explained
 
@@ -198,39 +192,12 @@ The Linux sections above apply as-is; only the paths look different.
 
 ## Gotchas
 
-- Flag order bites everyone once:
-  f
-  must be last in the cluster.
-  tar -czvf out.tar.gz dir
-  is right;
-  tar -czfv out.tar.gz dir
-  creates an archive literally named
-  v
-  .
-- tar: Removing leading '/' from member names
-  is not an error. tar stores relative paths on purpose so an extraction cannot overwrite system files at their original absolute paths.
-- Archive the folder, not its contents: run
-  tar -czf site.tar.gz site/
-  from the parent directory. An archive of loose files scatters them all over whatever directory it is extracted in.
-- Ownership depends on who extracts: root restores the original owners, a normal user gets every file as their own. Add
-  -p
-  to keep permissions when extracting as a normal user.
-- macOS ships bsdtar too. Everyday commands match GNU tar, but
-  --wildcards
-  is missing there (patterns work without it) and
-  --exclude
-  should come before the paths, as written above.
-- tar has no password option. For an encrypted archive, pipe it through gpg:
-  tar -czf - dir/ \| gpg -c \> dir.tar.gz.gpg
-  , and reverse it with
-  gpg -d dir.tar.gz.gpg \| tar -xzf -
-  .
-
-### Stop memorizing commands
-
-SSH Workbench puts the common server tasks behind buttons: services, Docker, files, cron, firewall. The terminal is still there when you want it.
-
-[Try free for 7 days](https://sshworkbench.com/#install)
+- Flag order bites everyone once: f must be last in the cluster. tar -czvf out.tar.gz dir is right; tar -czfv out.tar.gz dir creates an archive literally named v.
+- tar: Removing leading '/' from member names is not an error. tar stores relative paths on purpose so an extraction cannot overwrite system files at their original absolute paths.
+- Archive the folder, not its contents: run tar -czf site.tar.gz site/ from the parent directory. An archive of loose files scatters them all over whatever directory it is extracted in.
+- Ownership depends on who extracts: root restores the original owners, a normal user gets every file as their own. Add -p to keep permissions when extracting as a normal user.
+- macOS ships bsdtar too. Everyday commands match GNU tar, but --wildcards is missing there (patterns work without it) and --exclude should come before the paths, as written above.
+- tar has no password option. For an encrypted archive, pipe it through gpg: tar -czf - dir/ \| gpg -c > dir.tar.gz.gpg, and reverse it with gpg -d dir.tar.gz.gpg \| tar -xzf -.
 
 ## tar FAQ
 
@@ -255,4 +222,4 @@ Pass -C with the target: tar -xzf app.tar.gz -C /opt/app. tar changes into that 
 Open Command Prompt or PowerShell and run it exactly as you would on Linux. Windows 10 (since the April 2018 update) and Windows 11 ship bsdtar, so there is no WSL, Git Bash or 7-Zip to install: tar -xf archive.tar.gz extracts, tar -czf out.tar.gz Documents creates, tar -tf lists. Paths use backslashes, and -C C:\output still needs the folder to exist first. Run tar --version to see which one you have; the built-in reports bsdtar, and unlike GNU tar it opens .zip files too.
 
 ---
-Källa: https://sshworkbench.com/cheatsheets/tar
+Source: https://sshworkbench.com/cheatsheets/tar

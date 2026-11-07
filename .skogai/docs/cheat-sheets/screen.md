@@ -2,25 +2,6 @@
 
 GNU screen keeps a shell running on the server after you disconnect: detach, log off, and reattach later with everything still going. This sheet covers the session commands, the Ctrl+a shortcuts, copy mode, background jobs, serial ports, and how screen maps to tmux.
 
-Last updated September 11, 2026
-
-On this page
-
-- [Detach and Reattach](#detach-and-reattach)
-- [Sessions](#sessions)
-- [Run in the Background](#run-in-the-background)
-- [Kill a Session](#kill-a-session)
-- [Scrolling and Copy Mode](#scrolling-and-copy-mode)
-- [Windows](#windows)
-- [Split Screen](#split-screen)
-- [Keyboard Shortcuts](#keyboard-shortcuts)
-- [Serial Ports](#serial-ports)
-- [Logging](#logging)
-- [Install](#install)
-- [PuTTY and WSL](#putty-and-wsl)
-- [screen vs tmux](#screen-vs-tmux)
-- [Gotchas](#gotchas)
-
 ## Detach and Reattach
 
 Ctrl+a is screen's command key: press Ctrl+a, release, then the letter. Detaching leaves everything running; exit is what actually ends things.
@@ -47,7 +28,7 @@ A dropped SSH connection detaches you automatically, so a long job inside screen
 | screen -S deploy | Start a session named deploy, which beats PIDs for reattaching |
 | screen -ls | List sessions and whether each is Attached or Detached |
 | screen -dmS backup ./backup.sh | Start a detached session running a command (scripts, cron) |
-| screen -S deploy -X stuff \$'ls\n' | Type a command into a session from outside |
+| screen -S deploy -X stuff $'ls\n' | Type a command into a session from outside |
 | Ctrl+a :sessionname newname | Rename the current session |
 | screen -wipe | Remove sessions marked Dead from the list |
 
@@ -61,8 +42,8 @@ A dropped SSH connection detaches you automatically, so a long job inside screen
 | screen -dmS api bash -c './server; exec bash' | Keep the window open after the command exits, so you can read the error |
 | screen -L -dmS build make all | Same, logging output to screenlog.0 |
 | screen -S api -X screen ./worker.sh | Open another window running a command in a session that already exists |
-| screen -S api -X stuff \$'restart\n' | Send a line to the session as if you typed it |
-| screen -S mc -p 0 -X stuff \$'stop\n' | Send it to window 0 specifically (how people stop a Minecraft server) |
+| screen -S api -X stuff $'restart\n' | Send a line to the session as if you typed it |
+| screen -S mc -p 0 -X stuff $'stop\n' | Send it to window 0 specifically (how people stop a Minecraft server) |
 | screen -ls \| grep backup | Check whether the background session is still alive |
 
 A detached session is owned by your login, so it dies with a reboot and with an aggressive systemd user-session cleanup. Anything that must come back on its own belongs in a service unit rather than screen.
@@ -78,17 +59,21 @@ A detached session is owned by your login, so it dies with a reboot and with an 
 
 Kill every detached session at once:
 
-```
+```bash
 screen -ls | grep Detached | cut -d. -f1 | xargs -r kill
 ```
-
-Copy
 
 ## Scrolling and Copy Mode
 
 PgUp and the mouse wheel talk to your terminal, not to screen. Scrolling back happens in copy mode.
 
-[TABLE]
+| Keybinding | Action |
+|---|---|
+| `Ctrl+A [` | Enter scrollback / copy mode (Esc exits) |
+| `Ctrl+U / Ctrl+D` | Scroll half-page up / down |
+| `k / j` | Move up / down by line |
+| `Space` | Set first mark, move cursor, press `Space` again to copy |
+| `Ctrl+A ]` | Paste copied buffer into active terminal |
 
 The default buffer is only 100 lines. Put defscrollback 10000 in ~/.screenrc so every window starts with real history.
 
@@ -96,13 +81,26 @@ The default buffer is only 100 lines. Put defscrollback 10000 in ~/.screenrc so 
 
 Windows are full-screen tabs inside one session.
 
-[TABLE]
+| Keybinding | Action |
+|---|---|
+| `Ctrl+A c` | Create new screen window |
+| `Ctrl+A "` | Interactive list of all open windows |
+| `Ctrl+A n` / `Ctrl+A p` | Switch to next / previous window |
+| `Ctrl+A 0..9` | Switch directly to window number |
+| `Ctrl+A A` | Rename current window |
+| `Ctrl+A k` | Kill current window |
 
 ## Split Screen
 
 A new region starts empty: move into it with Ctrl+a Tab, then open a window in it.
 
-[TABLE]
+| Keybinding | Action |
+|---|---|
+| `Ctrl+A S` | Split current region horizontally |
+| `Ctrl+A \|` | Split current region vertically |
+| `Ctrl+A Tab` | Move input focus to next split region |
+| `Ctrl+A X` | Remove / close current split region |
+| `Ctrl+A Q` | Close all split regions except active one |
 
 ## Keyboard Shortcuts
 
@@ -116,25 +114,37 @@ The rest of the Ctrl+a keys worth knowing.
 | Ctrl+a x  | Lock the session behind your password                 |
 | Ctrl+a H  | Start or stop logging the window                      |
 | Ctrl+a h  | Write a snapshot of the visible window to hardcopy.0  |
-| Ctrl+a \* | List the displays attached to this session            |
+| Ctrl+a * | List the displays attached to this session            |
 
 ## Serial Ports
 
 screen doubles as a serial terminal, which is the main thing it does that tmux does not. Settings default to 8N1; give the baud rate after the device.
 
-[TABLE]
+| Command | What it does |
+|---|---|
+| `screen /dev/ttyUSB0 115200` | Connect to serial device at 115200 baud |
+| `screen /dev/ttyACM0 9600` | Connect to Arduino/microcontroller at 9600 baud |
+| `Ctrl+A \` | Terminate and exit serial connection |
 
-Detaching with Ctrl+a d keeps the port locked, so end serial sessions with Ctrl+a k. Permission denied on the device means your user is not in the right group: sudo usermod -aG dialout \$USER, then log in again.
+Detaching with Ctrl+a d keeps the port locked, so end serial sessions with Ctrl+a k. Permission denied on the device means your user is not in the right group: sudo usermod -aG dialout $USER, then log in again.
 
 ## Logging
 
-[TABLE]
+| Command / Key | What it does |
+|---|---|
+| `Ctrl+A H` | Toggle session logging on/off (writes to `screenlog.0`) |
+| `screen -L -Logfile session.log` | Start screen session with continuous file logging |
 
 ## Install
 
 "screen: command not found" means the package is missing, which is normal on minimal images and containers.
 
-[TABLE]
+| Distribution | Command |
+|---|---|
+| Debian / Ubuntu | `sudo apt install screen` |
+| Arch Linux | `sudo pacman -S screen` |
+| Fedora / RHEL | `sudo dnf install screen` |
+| macOS | `brew install screen` |
 
 macOS still has /usr/bin/screen at version 4.00.03, which is missing -Logfile and a lot of the copy-mode keys. Homebrew's build lands in PATH ahead of it.
 
@@ -142,7 +152,11 @@ macOS still has /usr/bin/screen at version 4.00.03, which is missing -Logfile an
 
 Windows has no screen of its own. You either run it on the Linux box you connect to, or run it locally under WSL.
 
-[TABLE]
+| Issue | Solution |
+|---|---|
+| Broken scrolling with mouse | Add `termcapinfo xterm* ti@:te@` to `~/.screenrc` |
+| Garbled UTF-8 characters | Start with `screen -U` to enforce UTF-8 mode |
+| Missing function keys | Set PuTTY terminal type string to `screen-256color` |
 
 PuTTY has its own serial mode, so on Windows you pick a COM port there instead of screen /dev/ttyUSB0. The [PuTTY cheat sheet](https://sshworkbench.com/cheatsheets/putty) covers the Windows side.
 
@@ -150,54 +164,32 @@ PuTTY has its own serial mode, so on Windows you pick a COM port there instead o
 
 The keys map almost one to one, so switching either way is cheap. tmux has better splits, a status bar, and active development; screen is preinstalled more often and handles serial ports. The [tmux cheat sheet](https://sshworkbench.com/cheatsheets/tmux) covers the other side in full.
 
-[TABLE]
+| Feature | GNU Screen | tmux |
+|---|---|---|
+| Active Development | Minimal / legacy maintenance | Very active, modern ecosystem |
+| Config File | `~/.screenrc` | `~/.tmux.conf` |
+| Client-Server Model | Monolithic per-screen sessions | Unified background daemon |
+| Scripting & Automation | Limited | Extensive (`tmux send-keys`, control mode) |
+| Vertical Splits | Requires modern patched build | First-class native feature |
 
 ## Gotchas
 
-- Detach is not exit.
-  Ctrl+a d
-  keeps everything running;
-  exit
-  closes the window, and the last window takes the session with it ("\[screen is terminating\]").
-- The scrollback buffer defaults to 100 lines. Add
-  defscrollback 10000
-  to
-  ~/.screenrc
-  before you need it, not after.
-- screen eats Ctrl+a, which bash uses for start of line. Press
-  Ctrl+a a
-  to send it through, or move the command key with
-  escape ^Jj
-  in
-  ~/.screenrc
-  .
-- "There is no screen to be resumed" while
-  screen -ls
-  shows a session Attached means a dead client is holding it.
-  screen -rd
-  takes it over.
-- screen inside screen (a session on the far end of an SSH window):
-  Ctrl+a a d
-  detaches the inner one,
-  Ctrl+a d
-  the outer.
+- Detach is not exit. Ctrl+a d keeps everything running; exit closes the window, and the last window takes the session with it ("[screen is terminating]").
+- The scrollback buffer defaults to 100 lines. Add defscrollback 10000 to ~/.screenrc before you need it, not after.
+- screen eats Ctrl+a, which bash uses for start of line. Press Ctrl+a a to send it through, or move the command key with escape ^Jj in ~/.screenrc.
+- "There is no screen to be resumed" while screen -ls shows a session Attached means a dead client is holding it. screen -rd takes it over.
+- screen inside screen (a session on the far end of an SSH window): Ctrl+a a d detaches the inner one, Ctrl+a d the outer.
 - Sessions do not survive a reboot. screen protects you from disconnects, not from restarts; anything that must outlive a reboot belongs in a systemd service.
-
-### Tired of typing all of this?
-
-SSH Workbench turns your servers into a dashboard over plain SSH: files, services, Docker, logs, and cron with a click, and a real terminal when you want one.
-
-[Try free for 7 days](https://sshworkbench.com/#install)
 
 ## screen FAQ
 
 ### How do I exit the screen command?
 
-There are three exits and they do different things. Ctrl+a then d detaches: the shell and every job in it keep running, screen -ls shows the session as Detached, and screen -r brings it back. Typing exit (or Ctrl+d) closes the current window, and when the last window goes the session ends for good and prints screen is terminating. Ctrl+a then backslash kills every window at once after a confirmation. From outside, screen -S deploy -X quit ends a session without attaching to it first. If Ctrl+a d does nothing you are probably not inside screen: run echo \$STY, which prints the session name inside screen and nothing outside it.
+There are three exits and they do different things. Ctrl+a then d detaches: the shell and every job in it keep running, screen -ls shows the session as Detached, and screen -r brings it back. Typing exit (or Ctrl+d) closes the current window, and when the last window goes the session ends for good and prints screen is terminating. Ctrl+a then backslash kills every window at once after a confirmation. From outside, screen -S deploy -X quit ends a session without attaching to it first. If Ctrl+a d does nothing you are probably not inside screen: run echo $STY, which prints the session name inside screen and nothing outside it.
 
 ### How do I scroll up inside screen?
 
-Press Ctrl+a then \[ to enter copy mode, scroll with PgUp, PgDn, or the arrow keys, and press q to get back to a live prompt. The mouse wheel usually scrolls your terminal's own buffer instead, which mixes windows together, so copy mode is the reliable way. The real catch is the buffer size: screen keeps only 100 lines by default. Put defscrollback 10000 in ~/.screenrc, or run Ctrl+a :scrollback 10000 for the current window, and the history becomes worth scrolling.
+Press Ctrl+a then [ to enter copy mode, scroll with PgUp, PgDn, or the arrow keys, and press q to get back to a live prompt. The mouse wheel usually scrolls your terminal's own buffer instead, which mixes windows together, so copy mode is the reliable way. The real catch is the buffer size: screen keeps only 100 lines by default. Put defscrollback 10000 in ~/.screenrc, or run Ctrl+a :scrollback 10000 for the current window, and the history becomes worth scrolling.
 
 ### How do I kill all screen sessions at once?
 
@@ -212,4 +204,4 @@ screen is not installed. Minimal images, containers, and fresh cloud instances u
 For plain detach and reattach over SSH, either works and the keys map almost one to one: screen -S is tmux new -s, screen -r is tmux attach, and Ctrl+a d is Ctrl+b d. tmux is the better multiplexer, with real pane splitting, a status bar, a scriptable command language, and active development. screen keeps two advantages: it is preinstalled on more old and minimal systems, and it doubles as a serial terminal with screen /dev/ttyUSB0 115200, which tmux cannot do. On a box that has both, pick tmux; on a box you cannot install anything on, screen is usually already there.
 
 ---
-Källa: https://sshworkbench.com/cheatsheets/screen
+Source: https://sshworkbench.com/cheatsheets/screen

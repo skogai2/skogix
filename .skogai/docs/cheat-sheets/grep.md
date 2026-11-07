@@ -2,33 +2,13 @@
 
 grep prints the lines that match a pattern, from files or from whatever you pipe into it. The examples here cover the everyday flags, recursive search, regex, logs and processes, compressed files, and what to use instead on Windows.
 
-Last updated September 11, 2026
-
-On this page
-
-- [Syntax](#syntax)
-- [The Basics](#the-basics)
-- [Recursive Search](#recursive-search)
-- [Multiple Patterns](#multiple-patterns)
-- [Counting Matches](#counting-matches)
-- [Regex](#regex)
-- [Context Lines](#context-lines)
-- [Pipes and xargs](#pipes-and-xargs)
-- [Searching Logs](#searching-logs)
-- [Compressed Files](#compressed-files)
-- [grep on Windows](#grep-on-windows)
-- [Alternatives to grep](#alternatives-to-grep)
-- [Gotchas](#gotchas)
-
 ## Syntax
 
 Options can come before or after the pattern. With more than one file, grep prefixes every output line with the file name.
 
-```
+```bash
 grep [options] PATTERN [file ...]
 ```
-
-Copy
 
 | Exit code | Meaning                                                   |
 |-----------|-----------------------------------------------------------|
@@ -38,7 +18,16 @@ Copy
 
 ## The Basics
 
-[TABLE]
+| Command | What it does |
+|---|---|
+| `grep "pattern" file` | Search file for lines containing pattern |
+| `grep -i "pattern" file` | Case-insensitive search |
+| `grep -v "pattern" file` | Invert match: print lines that do NOT match pattern |
+| `grep -r "pattern" dir/` | Search recursively through directory |
+| `grep -n "pattern" file` | Prefix each matching line with its line number |
+| `grep -c "pattern" file` | Output count of matching lines only |
+| `grep -l "pattern" *` | List only names of files that contain matches |
+| `grep -w "word" file` | Match whole words only |
 
 ## Recursive Search
 
@@ -50,8 +39,8 @@ Copy
 | grep -rn "api_key" src/ | Recursive with file name and line number |
 | grep -ri "todo" . | Recursive, case insensitive |
 | grep -rl "old_name" . | Just the file names (feeds nicely into xargs) |
-| grep -r "text" . --include="\*.py" | Only search .py files |
-| grep -r "text" . --exclude="\*.min.js" | Skip minified files |
+| grep -r "text" . --include="*.py" | Only search .py files |
+| grep -r "text" . --exclude="*.min.js" | Skip minified files |
 | grep -r "text" . --exclude-dir=node_modules | Skip a directory |
 | grep -r "text" . --exclude-dir={.git,node_modules,dist} | Skip several directories |
 | grep -R "text" . | Like -r, but also follows symlinks |
@@ -78,8 +67,8 @@ Copy
 | grep -o "error" app.log \| wc -l | Count occurrences, including several per line |
 | grep -vc "debug" app.log | Count the lines that do not match |
 | grep -rc "TODO" src/ | Per-file counts across a tree |
-| grep -rc "TODO" src/ \| grep -v ":0\$" | Same, hiding files with no matches |
-| grep -oE "\[0-9.\]+" ips.txt \| sort \| uniq -c \| sort -rn | Rank the distinct matches by frequency |
+| grep -rc "TODO" src/ \| grep -v ":0$" | Same, hiding files with no matches |
+| grep -oE "[0-9.]+" ips.txt \| sort \| uniq -c \| sort -rn | Rank the distinct matches by frequency |
 
 -c counts lines, not matches: a line with three hits still counts as one. Use -o piped into wc -l when you need the real total.
 
@@ -87,7 +76,14 @@ Copy
 
 grep's default dialect is basic regex (BRE). Add -E for extended regex (ERE), where +, ?, \|, () and {} work without backslashes. -E works on every grep, including macOS.
 
-[TABLE]
+| Pattern / Flag | Syntax Example | Description |
+|---|---|---|
+| Extended Regex | `grep -E "foo\|bar"` | Enable ERE (supports `\|`, `+`, `?`, `()`) |
+| Perl Regex | `grep -P "\d{3}-\d{2}"` | Enable PCRE (supports `\d`, `\w`, `\s`) |
+| Line Start | `grep "^Error"` | Match only at the beginning of a line |
+| Line End | `grep "failed$"` | Match only at the end of a line |
+| Any Character | `grep "c.t"` | Match any single character |
+| Character Class | `grep "[0-9]"` | Match any digit character in bracket |
 
 With -E:
 
@@ -97,7 +93,7 @@ With -E:
 | -E "colou?r" | Optional: color and colour |
 | -E "error\|warn" | Alternation |
 | -E "(ab)+" | Grouping: ab, abab |
-| -E "\[0-9\]{1,3}\\\[0-9\]{1,3}" | Repetition counts (start of an IP address) |
+| -E "[0-9]{1,3}\\[0-9]{1,3}" | Repetition counts (start of an IP address) |
 
 grep -P unlocks Perl regex (\d, \s, lookaheads) but only exists in GNU grep. The grep on macOS and BSD does not have it: use -E with POSIX classes, or brew install grep and call ggrep.
 
@@ -116,11 +112,20 @@ Groups of matches are separated by a -- line. Nearby matches merge into one bloc
 
 grep is at its best at the end of a pipe. See the [awk cheat sheet](https://sshworkbench.com/cheatsheets/awk) for what usually comes after it.
 
-[TABLE]
+| Command | What it does |
+|---|---|
+| `ps aux \| grep nginx` | Pipe command output into grep |
+| `grep -rl "old_api" . \| xargs sed -i 's/old_api/new_api/g'` | Find files and pass to sed |
+| `grep -rlZ "pattern" . \| xargs -0 rm` | Safely handle filenames with spaces using null delimiter |
 
 ## Searching Logs
 
-[TABLE]
+| Command | What it does |
+|---|---|
+| `zgrep "500 Internal" /var/log/nginx/access.log*.gz` | Search directly inside gzipped log files |
+| `grep -C 3 "NullPointerException" app.log` | Print 3 lines of context around each match |
+| `grep -A 5 "Exception" app.log` | Print 5 lines after each match |
+| `grep -B 2 "Error" app.log` | Print 2 lines before each match |
 
 For a real range between two timestamps, awk '/08:15:00/,/09:30:00/' app.log is the better tool. See the [awk cheat sheet](https://sshworkbench.com/cheatsheets/awk).
 
@@ -129,7 +134,7 @@ For a real range between two timestamps, awk '/08:15:00/,/09:30:00/' app.log is 
 | Command | What it does |
 |----|----|
 | zgrep "error" app.log.1.gz | Search a gzipped file without unpacking it |
-| zgrep -i "error" /var/log/syslog\* | Rotated logs, plain and gzipped in one pass |
+| zgrep -i "error" /var/log/syslog* | Rotated logs, plain and gzipped in one pass |
 | zgrep -c "error" app.log.1.gz | Count inside a compressed file |
 | zcat app.log.1.gz \| grep "error" | The same thing by hand |
 | bzgrep "error" app.log.bz2 | bzip2 archives |
@@ -143,7 +148,12 @@ zgrep takes the same flags as grep, so -r, -i and -n all carry over.
 
 Windows has no grep built in, but both shells have an equivalent.
 
-[TABLE]
+| Tool / Command | Equivalent Grep Flag |
+|---|---|
+| `findstr /I "pattern" file` | Case-insensitive (`grep -i`) |
+| `findstr /R "^Error" file` | Regex search (`grep -E`) |
+| `findstr /S /M "word" *.*` | Recursive file list (`grep -rl`) |
+| `Select-String -Pattern "regex" file` | PowerShell native cmdlet |
 
 Git Bash and WSL both ship genuine GNU grep, so grep -rn "text" . works there unchanged.
 
@@ -151,62 +161,23 @@ Git Bash and WSL both ship genuine GNU grep, so grep -rn "text" . works there un
 
 grep is on every machine you will ever log into. These are faster in a large source tree, but you have to install them first.
 
-[TABLE]
+| Tool | Command | Description |
+|---|---|---|
+| `ripgrep` | `rg "pattern"` | Extremely fast Rust-based tool that respects `.gitignore` |
+| `ag` | `ag "pattern"` | The Silver Searcher (fast C-based grep replacement) |
+| `ack` | `ack "pattern"` | Perl-based grep replacement for codebases |
 
 ## Gotchas
 
-- -P
-  is GNU-only. On macOS,
-  grep -P '\d+'
-  fails with "invalid option"; use
-  grep -E '\[0-9\]+'
-  or install GNU grep (
-  brew install grep
-  , then
-  ggrep
-  ).
-- Always quote the pattern. Unquoted, the shell expands
-  \*
-  and
-  ?
-  against your files before grep ever sees them.
-- grep exits 1 when nothing matches. In a script with
-  set -e
-  that kills the script; append
-  \|\| true
-  when no-match is fine.
-- In basic regex,
-  \+
-  and
-  ?
-  are literal characters.
-  grep "go+gle"
-  matches the literal text go+gle; you want
-  -E
-  .
-- "Binary file matches" means the file has non-text bytes.
-  grep -a
-  forces it to be treated as text, and
-  -I
-  skips binary files entirely during a recursive search.
-- grep "error"
-  with no file name is not hung, it is waiting on standard input. Ctrl+C out, then give it a file or a pipe.
-- A file written on Windows ends each line with a carriage return, so
-  grep "error\$"
-  finds nothing. Run
-  dos2unix
-  on it first.
-- cat app.log \\ grep "error"
-  works, but
-  grep "error" app.log
-  is one process instead of two and lets grep print the file name.
+- -P is GNU-only. On macOS, grep -P '\d+' fails with "invalid option"; use grep -E '[0-9]+' or install GNU grep ( brew install grep, then ggrep).
+- Always quote the pattern. Unquoted, the shell expands * and? against your files before grep ever sees them.
+- grep exits 1 when nothing matches. In a script with set -e that kills the script; append \|\| true when no-match is fine.
+- In basic regex, \+ and? are literal characters. grep "go+gle" matches the literal text go+gle; you want -E.
+- "Binary file matches" means the file has non-text bytes. grep -a forces it to be treated as text, and -I skips binary files entirely during a recursive search.
+- grep "error" with no file name is not hung, it is waiting on standard input. Ctrl+C out, then give it a file or a pipe.
+- A file written on Windows ends each line with a carriage return, so grep "error$" finds nothing. Run dos2unix on it first.
+- cat app.log \\ grep "error" works, but grep "error" app.log is one process instead of two and lets grep print the file name.
 - grep finds lines, [sed](https://sshworkbench.com/cheatsheets/sed) edits them, and [awk](https://sshworkbench.com/cheatsheets/awk) works on columns. The three cover most text jobs between them.
-
-### Stop memorizing commands
-
-SSH Workbench puts the common server tasks behind buttons: services, Docker, files, cron, firewall. The terminal is still there when you want it.
-
-[Try free for 7 days](https://sshworkbench.com/#install)
 
 ## grep FAQ
 
@@ -216,19 +187,19 @@ It is the name of a command in the old Unix line editor ed: g/re/p, which reads 
 
 ### Is the grep command case sensitive?
 
-Yes, by default. -i turns that off for the whole pattern, so grep -i error also matches Error and ERROR. When you only want part of the pattern relaxed, use a character class instead: grep -E "\[Ee\]rror: \[0-9\]+" keeps the digits strict. Case folding also follows your locale, so LC_ALL=C grep -i runs faster on large files but stops folding accented characters.
+Yes, by default. -i turns that off for the whole pattern, so grep -i error also matches Error and ERROR. When you only want part of the pattern relaxed, use a character class instead: grep -E "[Ee]rror: [0-9]+" keeps the digits strict. Case folding also follows your locale, so LC_ALL=C grep -i runs faster on large files but stops folding accented characters.
 
 ### Can the grep command be used with glob characters?
 
-Not in the pattern. grep patterns are regular expressions, so \* means "zero or more of the previous character" and ? is a literal question mark in the default dialect. The glob equivalent of \* is .\* in regex. Globs do work in the file list (grep error \*.log, expanded by the shell before grep runs) and in --include and --exclude, which match shell-style globs against file names.
+Not in the pattern. grep patterns are regular expressions, so * means "zero or more of the previous character" and ? is a literal question mark in the default dialect. The glob equivalent of * is .* in regex. Globs do work in the file list (grep error *.log, expanded by the shell before grep runs) and in --include and --exclude, which match shell-style globs against file names.
 
 ### Why is my grep command not working?
 
-Four usual causes. The pattern was unquoted and the shell expanded it first. The pattern uses + or ?, which are literal characters until you add -E. The file came from Windows, so every line ends in a carriage return and anchors like error\$ never match until you run dos2unix on it. Or the file is binary, so grep only prints "Binary file matches" until you add -a. "grep: command not found" is a different problem: the shell cannot find grep at all, which on Windows means you are not in Git Bash or WSL.
+Four usual causes. The pattern was unquoted and the shell expanded it first. The pattern uses + or ?, which are literal characters until you add -E. The file came from Windows, so every line ends in a carriage return and anchors like error$ never match until you run dos2unix on it. Or the file is binary, so grep only prints "Binary file matches" until you add -a. "grep: command not found" is a different problem: the shell cannot find grep at all, which on Windows means you are not in Git Bash or WSL.
 
 ### Does Windows have a grep command?
 
-There is no grep binary. cmd has findstr (findstr /S /I "error" \*.log is roughly grep -ri), which works but has a narrow regex dialect; use /C:"two words" when the pattern contains spaces, since findstr otherwise treats each word as a separate pattern. PowerShell's Select-String is much closer to grep and takes full .NET regex, but it returns match objects, so pipe it through ForEach-Object Line when a script wants plain text. Git for Windows and WSL both ship genuine GNU grep.
+There is no grep binary. cmd has findstr (findstr /S /I "error" *.log is roughly grep -ri), which works but has a narrow regex dialect; use /C:"two words" when the pattern contains spaces, since findstr otherwise treats each word as a separate pattern. PowerShell's Select-String is much closer to grep and takes full .NET regex, but it returns match objects, so pipe it through ForEach-Object Line when a script wants plain text. Git for Windows and WSL both ship genuine GNU grep.
 
 ---
-Källa: https://sshworkbench.com/cheatsheets/grep
+Source: https://sshworkbench.com/cheatsheets/grep

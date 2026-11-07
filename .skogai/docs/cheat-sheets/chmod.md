@@ -2,29 +2,6 @@
 
 chmod changes who can read, write, and execute a file on Linux and macOS. This sheet covers the octal numbers, symbolic syntax, recursive changes, SSH key permissions, the special bits, and the chown and umask companions.
 
-Last updated September 11, 2026
-
-On this page
-
-- [Octal Numbers](#octal-numbers)
-- [Symbolic Syntax](#symbolic-syntax)
-- [Make a File Executable](#make-a-file-executable)
-- [Recursive Changes](#recursive-changes)
-- [Multiple Files and Wildcards](#multiple-files-and-wildcards)
-- [Directories vs Files](#directories-vs-files)
-- [Symlinks](#symlinks)
-- [setuid, setgid, Sticky Bit](#setuid-setgid-sticky-bit)
-- [SSH Key Permissions](#ssh-key-permissions)
-- [Reading ls -l Output](#reading-ls--l-output)
-- [ACLs](#acls)
-- [chown and chgrp](#chown-and-chgrp)
-- [umask](#umask)
-- [Web Server Permissions](#web-server-permissions)
-- [Options and Flags](#options-and-flags)
-- [Fixing chmod Errors](#fixing-chmod-errors)
-- [macOS and Windows](#macos-and-windows)
-- [Gotchas](#gotchas)
-
 ## Octal Numbers
 
 Three digits: owner, group, others. Each digit adds read 4, write 2, execute 1. Decode or build any mode with the [chmod calculator](https://sshworkbench.com/tools/chmod-calculator).
@@ -67,7 +44,11 @@ Who (u owner, g group, o others, a all), then + add, - remove, = set exactly, th
 
 ## Make a File Executable
 
-[TABLE]
+| Command | Action |
+|---|---|
+| `chmod +x script.sh` | Add execute permissions for User, Group, and Others |
+| `chmod u+x script.sh` | Add execute permissions for file Owner (User) only |
+| `chmod 755 script.sh` | Set `rwxr-xr-x` (owner full, group/others read and execute) |
 
 The first line of the script should name its interpreter (#!/bin/bash or \#!/usr/bin/env python3), or you will get cannot execute binary file or the wrong shell.
 
@@ -86,15 +67,22 @@ More find patterns in the [find cheat sheet](https://sshworkbench.com/cheatsheet
 
 ## Multiple Files and Wildcards
 
-The shell expands the wildcard before chmod runs, so chmod 755 \*.sh reaches chmod as a plain list of filenames.
+The shell expands the wildcard before chmod runs, so chmod 755 *.sh reaches chmod as a plain list of filenames.
 
-[TABLE]
+| Command | Action |
+|---|---|
+| `chmod 644 *.txt` | Set `rw-r--r--` on all matching `.txt` files in current directory |
+| `chmod -R 755 /var/www/html` | Apply permissions recursively to directory and all contents |
 
 ## Directories vs Files
 
 The same three letters mean different things on a directory.
 
-[TABLE]
+| Command | What it does |
+|---|---|
+| `chmod -R u=rwX,go=rX .` | Capital `X` sets execute bit on directories only (leaves files non-executable) |
+| `find . -type f -exec chmod 644 {} +` | Set standard `644` permissions on all files exclusively |
+| `find . -type d -exec chmod 755 {} +` | Set standard `755` permissions on all directories exclusively |
 
 Deleting a file needs w on the directory, not on the file. A directory without x blocks access to everything under it no matter what the files say.
 
@@ -102,7 +90,11 @@ Deleting a file needs w on the directory, not on the file. A directory without x
 
 A symlink has no useful mode of its own on Linux: access is decided by the target.
 
-[TABLE]
+| Command | Behavior |
+|---|---|
+| `chmod 755 symlink` | Follows symlink and changes permissions of the target file |
+| `chmod -h` | Supported on BSD/macOS to alter symlink permissions directly (Linux ignores) |
+| `chown -h user:group symlink` | Change ownership of the symbolic link itself |
 
 cannot operate on dangling symlink means the link points at a path that no longer exists.
 
@@ -110,7 +102,11 @@ cannot operate on dangling symlink means the link points at a path that no longe
 
 A fourth leading digit, or s/t in symbolic form.
 
-[TABLE]
+| Special Permission | Numeric Bit | Symbol | Description |
+|---|---|---|---|
+| SUID (Set User ID) | `4000` | `s` (in owner) | Executable runs with privileges of file owner (`chmod 4755`) |
+| SGID (Set Group ID) | `2000` | `s` (in group) | Files created in dir inherit parent directory's group |
+| Sticky Bit | `1000` | `t` (in others) | Users can only delete files they own (standard on `/tmp`) |
 
 In ls -l, setuid/setgid show as s in the owner/group execute slot and the sticky bit as t at the end (drwxrwxrwt on /tmp). A capital S or T means the bit is set but execute is missing, which is usually a mistake.
 
@@ -137,8 +133,6 @@ The server side is silent about all of this: sshd logs the reason locally and se
 -rwxr-xr--  1 alice developers  4096 Sep  5 10:30 deploy.sh
 ```
 
-Copy
-
 Type, then three triads: owner rwx, group r-x, others r--. That file is 754. Paste any drwxr-xr-x string into the [chmod calculator](https://sshworkbench.com/tools/chmod-calculator) to get the number back.
 
 | First character | Meaning      |
@@ -160,7 +154,13 @@ A trailing + means ACLs are set (see below); on macOS @ means extended attribute
 
 When owner, group, and others cannot express who needs access, an ACL adds per-user entries on top of the mode bits. ls -l marks a file that has one with a trailing +.
 
-[TABLE]
+| Command | What it does |
+|---|---|
+| `getfacl file.txt` | View extended Access Control Lists for file |
+| `setfacl -m u:alice:rwx file.txt` | Grant user `alice` read, write, and execute permissions |
+| `setfacl -m g:developers:rx file.txt` | Grant group `developers` read and execute |
+| `setfacl -x u:alice file.txt` | Remove specific ACL entry for user |
+| `setfacl -b file.txt` | Remove all extended ACLs from file |
 
 Running chmod on a file with an ACL rewrites the ACL mask, which can quietly cut the extra entries down. Check with getfacl after any chmod on an ACL'd path.
 
@@ -215,11 +215,19 @@ When an app "needs" 777 to work, the real problem is ownership: the process user
 
 ## Fixing chmod Errors
 
-[TABLE]
+| Error / Scenario | Solution |
+|---|---|
+| Locked out of `/bin/chmod` | Run `/lib64/ld-linux-x86-64.so.2 /bin/chmod 755 /bin/chmod` |
+| Broken SSH key permissions | Run `chmod 700 ~/.ssh && chmod 600 ~/.ssh/id_* ~/.ssh/authorized_keys` |
+| Sudo corrupted | Run `pkexec chmod 4755 /usr/bin/sudo` |
 
 ## macOS and Windows
 
-[TABLE]
+| Platform | Tool / Context |
+|---|---|
+| macOS | BSD chmod supports ACL syntax: `chmod +a "user:alice allow read" file` |
+| Windows (NTFS) | Uses `icacls.exe`: `icacls file /grant Alice:(R,W)` |
+| WSL | Mount option `metadata` enables Linux permissions on Windows drives (`/etc/wsl.conf`) |
 
 To make chmod stick on Windows drives in WSL, add this and restart WSL with wsl --shutdown:
 
@@ -229,43 +237,13 @@ To make chmod stick on Windows drives in WSL, add this and restart WSL with wsl 
 options = "metadata,umask=22,fmask=11"
 ```
 
-Copy
-
 ## Gotchas
 
-- Modes survive reboots but not every copy.
-  cp
-  without
-  -p
-  , most unzip tools, and
-  scp
-  without
-  -p
-  reset the mode at the destination, and git records only the execute bit.
-- chmod updates a file's ctime, not its mtime, so
-  ls -l
-  shows the old timestamp and backup tools that key on mtime can skip the change entirely.
-- Bash wildcards never match dotfiles, so
-  chmod 600 \*
-  quietly leaves
-  .env
-  and
-  .ssh
-  alone.
-- Numbers are absolute, letters are relative.
-  chmod 755
-  sets all nine bits and wipes any setuid, setgid, or sticky bit on the file;
-  chmod u+x
-  only adds one bit.
-- root ignores the read and write bits, so
-  chmod 000
-  hides nothing from a root process or from anyone with sudo.
-
-### Stop memorizing commands
-
-SSH Workbench puts the common server tasks behind buttons: services, Docker, files, cron, firewall. The terminal is still there when you want it.
-
-[Try free for 7 days](https://sshworkbench.com/#install)
+- Modes survive reboots but not every copy. cp without -p, most unzip tools, and scp without -p reset the mode at the destination, and git records only the execute bit.
+- chmod updates a file's ctime, not its mtime, so ls -l shows the old timestamp and backup tools that key on mtime can skip the change entirely.
+- Bash wildcards never match dotfiles, so chmod 600 * quietly leaves.env and.ssh alone.
+- Numbers are absolute, letters are relative. chmod 755 sets all nine bits and wipes any setuid, setgid, or sticky bit on the file; chmod u+x only adds one bit.
+- root ignores the read and write bits, so chmod 000 hides nothing from a root process or from anyone with sudo.
 
 ## chmod FAQ
 
@@ -290,4 +268,4 @@ Not for your own files. Only the owner and root may change a file's mode, and no
 chmod -R applies a mode to everything under a directory, but one number is usually wrong for a tree: files want 644 and directories want 755, because execute on a directory means permission to enter it, and 644 directories become untraversable while 755 files become needlessly executable. Either run two find commands, find dir -type d -exec chmod 755 {} + and find dir -type f -exec chmod 644 {} +, or use the capital X in one pass: chmod -R u+rwX,go+rX dir, which sets execute only on directories and files that are already executable.
 
 ---
-Källa: https://sshworkbench.com/cheatsheets/chmod
+Source: https://sshworkbench.com/cheatsheets/chmod

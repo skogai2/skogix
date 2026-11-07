@@ -2,37 +2,25 @@
 
 top ships with every Linux distro and htop is the friendlier version you install yourself. This sheet covers both: what each column, colour and load average number means, the keys that sort and filter the list, killing a process from the screen, and running top in batch mode from a script.
 
-Last updated September 11, 2026
-
-On this page
-
-- [top Basics](#top-basics)
-- [Reading top Output](#reading-top-output)
-- [Load Average](#load-average)
-- [Sorting in top](#sorting-in-top)
-- [Watching One Process](#watching-one-process)
-- [Per-Core CPU](#per-core-cpu)
-- [Batch Mode](#batch-mode)
-- [Refresh Rate](#refresh-rate)
-- [htop Keyboard Shortcuts](#htop-keyboard-shortcuts)
-- [htop Colours](#htop-colours)
-- [Filter and Search](#filter-and-search)
-- [Tree View](#tree-view)
-- [Kill and Renice](#kill-and-renice)
-- [htop Options](#htop-options)
-- [Installing htop](#installing-htop)
-- [top vs htop](#top-vs-htop)
-- [Gotchas](#gotchas)
-
 ## top Basics
 
 top is installed everywhere and needs no arguments. Press q to leave it.
 
-[TABLE]
+| Header Line | Displays |
+|---|---|
+| Top Line | Current time, system uptime, active logged-in users, load average |
+| Tasks | Total tasks, running, sleeping, stopped, and zombie counts |
+| %Cpu(s) | CPU breakdown (`us` user, `sy` system, `ni` nice, `id` idle, `wa` I/O wait) |
+| MiB Mem / Swap | Total, free, used, and buffer/cache memory |
 
 Keys while it is running:
 
-[TABLE]
+| Header Line | Displays |
+|---|---|
+| Top Line | Current time, system uptime, active logged-in users, load average |
+| Tasks | Total tasks, running, sleeping, stopped, and zombie counts |
+| %Cpu(s) | CPU breakdown (`us` user, `sy` system, `ni` nice, `id` idle, `wa` I/O wait) |
+| MiB Mem / Swap | Total, free, used, and buffer/cache memory |
 
 ## Reading top Output
 
@@ -49,9 +37,14 @@ MiB Swap:   2048.0 total,   2048.0 free,      0.0 used.   4411.2 avail Mem
  1421 www-data  20   0  412536  58204  32120 S   2.3   0.7   1:12.44 nginx
 ```
 
-Copy
-
-[TABLE]
+| CPU Field | Description |
+|---|---|
+| `us` | User CPU time spent on un-niced user processes |
+| `sy` | System CPU time spent executing kernel syscalls |
+| `ni` | Nice time spent on prioritized user processes |
+| `id` | Idle time (unused CPU capacity) |
+| `wa` | I/O Wait time spent waiting for disk/network I/O |
+| `st` | Steal time (CPU cycles stolen by hypervisor for other VMs) |
 
 A one-off snapshot of the same columns comes from [ps](https://sshworkbench.com/cheatsheets/ps).
 
@@ -59,25 +52,43 @@ A one-off snapshot of the same columns comes from [ps](https://sshworkbench.com/
 
 Three counts of processes running or waiting, averaged over 1, 5 and 15 minutes. Not a percentage.
 
-[TABLE]
+| Time Horizon | Interpretation |
+|---|---|
+| 1 min | Immediate CPU load trend |
+| 5 min | Medium-term load average |
+| 15 min | Long-term load average (load / CPU cores = utilization ratio) |
 
 Linux counts processes in uninterruptible sleep as load, so a hung NFS mount or a dying disk can show load 15 with the CPU idle. When the numbers look wrong, read wa and the D states first.
 
 ## Sorting in top
 
-[TABLE]
+| Key (in top) | Sort Column |
+|---|---|
+| `P` | Sort by `%CPU` consumption (default) |
+| `M` | Sort by `%MEM` physical RAM usage |
+| `T` | Sort by cumulative CPU `TIME+` |
+| `N` | Sort by `PID` numeric order |
+| `R` | Reverse current sort order |
 
 From the command line: top -o %MEM, top -o TIME+, or top -o -%CPU to sort smallest first.
 
 ## Watching One Process
 
-[TABLE]
+| Command | What it does |
+|---|---|
+| `top -p 1234` | Monitor single process by PID |
+| `top -p 1234,5678` | Monitor multiple specific PIDs |
+| `top -u www-data` | Filter top to show only processes of specified user |
 
 ## Per-Core CPU
 
 In the default Irix mode %CPU is a share of a single core, so a threaded process on a 16 core box can legitimately read 1600.
 
-[TABLE]
+| Key | Action |
+|---|---|
+| `1` | Toggle between single combined CPU line and individual per-core metrics |
+| `t` | Toggle CPU and Task display bar modes |
+| `m` | Toggle memory display bar modes |
 
 htop draws one bar per core with no key to press, which is the usual reason people install it.
 
@@ -85,9 +96,12 @@ htop draws one bar per core with no key to press, which is the usual reason peop
 
 -b turns off the interactive screen and prints plain text. It is the only way to pipe or redirect top, and htop has no equivalent.
 
-[TABLE]
+| Command | What it does |
+|---|---|
+| `top -b -n 1` | Output single snapshot in plain text without curses formatting |
+| `top -b -n 5 -d 2 > top_log.txt` | Capture 5 iterations spaced 2 seconds apart to file |
 
-```
+```bash
 # Top five memory users as plain lines, for a cron report
 top -b -n 1 -o %MEM -w 512 | sed -n '8,12p'
 
@@ -95,13 +109,14 @@ top -b -n 1 -o %MEM -w 512 | sed -n '8,12p'
 top -b -n 2 -d 1 -p 1234 | tail -1
 ```
 
-Copy
-
 The first sample of %CPU is measured since boot, so a single -n 1 run understates a busy process. Ask for two iterations and read the last. For a one-shot list without any of this, ps aux --sort=-%mem \| head is simpler ([ps](https://sshworkbench.com/cheatsheets/ps)).
 
 ## Refresh Rate
 
-[TABLE]
+| Setting | Command / Key |
+|---|---|
+| CLI Flag | `top -d 1` (set update delay to 1 second) |
+| Interactive Key | Press `d`, type new seconds interval (e.g. `0.5`), press `Enter` |
 
 A slower refresh is worth setting on a busy server: top itself shows up in its own list, and a half-second delay on a few thousand processes is real work.
 
@@ -109,7 +124,16 @@ A slower refresh is worth setting on a busy server: top itself shows up in its o
 
 Function keys do everything, and the letter next to them works when a terminal or SSH client swallows F-keys.
 
-[TABLE]
+| Key | Function | Action |
+|---|---|---|
+| `F1` | Help | Display htop keybindings and help screen |
+| `F2` | Setup | Customize display meters, colors, and columns |
+| `F3` | Search | Search processes by keyword |
+| `F4` | Filter | Filter process list in real time |
+| `F5` | Tree | Toggle parent-child hierarchical tree view |
+| `F6` | Sort | Select column to sort processes by |
+| `F9` | Kill | Send kill signal (SIGTERM, SIGKILL) to selected process |
+| `F10` | Quit | Exit htop |
 
 ## htop Colours
 
@@ -127,21 +151,30 @@ Every meter is stacked, so each colour is a different kind of use rather than a 
 | Yellow  | Memory | Disk cache, returned to programs as soon as they need it |
 | Red     | Swap   | Swap in use. Any sustained figure here is worth chasing  |
 
-In the process list, a green name is a userland thread (H toggles them) and a red one is a kernel thread (K). Memory figures above a gigabyte are shaded differently, so a loud RES value only means it is large. F1 prints the legend for your build, F2 \> Colors changes the theme, and htop -C turns colour off for a terminal that renders it badly.
+In the process list, a green name is a userland thread (H toggles them) and a red one is a kernel thread (K). Memory figures above a gigabyte are shaded differently, so a loud RES value only means it is large. F1 prints the legend for your build, F2 > Colors changes the theme, and htop -C turns colour off for a terminal that renders it badly.
 
 ## Filter and Search
 
 Search moves the cursor and keeps the whole list. Filter hides everything else and keeps updating.
 
-[TABLE]
+| Key | Behavior |
+|---|---|
+| `F3` | Search: highlights matches, `F3` again jumps to next match |
+| `F4` | Filter: hides all non-matching rows from view (Esc clears) |
 
 ## Tree View
 
-[TABLE]
+| Key / Tool | Action |
+|---|---|
+| `F5` in htop | Toggle tree view showing process hierarchy |
+| `V` in top | Toggle forest/tree view in newer top versions |
 
 ## Kill and Renice
 
-[TABLE]
+| Action | Key in `top` | Key in `htop` |
+|---|---|---|
+| Kill Process | `k` (prompts for PID and signal number) | `F9` (opens signal selection list) |
+| Renice Priority | `r` (prompts for PID and nice value) | `F7` (nice down / priority up), `F8` (nice up) |
 
 A process in D state ignores SIGKILL because it is inside a kernel call, usually waiting on storage; fix the IO, or reboot. A service that comes straight back was restarted by systemd, so stop the unit instead ([systemctl](https://sshworkbench.com/cheatsheets/systemctl)).
 
@@ -167,8 +200,6 @@ Settings are written to ~/.config/htop/htoprc when you quit, and overwritten the
 rm ~/.config/htop/htoprc   # go back to the default layout
 ```
 
-Copy
-
 ## Installing htop
 
 | System | Command |
@@ -186,49 +217,23 @@ Inside a slim container image, run the package index update first (apt update), 
 
 ## top vs htop
 
-[TABLE]
+| Feature | `top` | `htop` |
+|---|---|---|
+| Availability | Universal default on all Linux distributions | Requires separate package installation |
+| Interface | Monochrome / text-based | Colorized with interactive bar meters |
+| Mouse Support | Minimal | Full mouse clicking and scrolling |
+| Process Tree | Basic | Interactive expandable process tree |
 
 Both read /proc, so the numbers agree. For containers, docker stats is the equivalent view ([Docker](https://sshworkbench.com/cheatsheets/docker)).
 
 ## Gotchas
 
-- top -b -n 1
-  reports almost no CPU for a busy process, because the first sample is averaged since boot. Ask for
-  -n 2
-  and read the last block.
-- top -d
-  is seconds,
-  htop -d
-  is tenths of a second.
-  htop -d 5
-  redraws twice a second and eats CPU doing it.
-- Load average counts processes stuck in uninterruptible sleep, so storage trouble shows up as load with an idle CPU. Read
-  wa
-  and the
-  D
-  column before blaming the CPU.
-- Adding up
-  RES
-  gives a figure larger than your RAM, because shared libraries are counted in every process that maps them. Trust
-  avail Mem
-  , not
-  free
-  .
-- htop: error opening terminal: xterm-256color
-  means your local terminal sent a
-  TERM
-  value the server has no terminfo entry for. Run
-  TERM=xterm htop
-  , or install the
-  ncurses-term
-  package on the server.
+- top -b -n 1 reports almost no CPU for a busy process, because the first sample is averaged since boot. Ask for -n 2 and read the last block.
+- top -d is seconds, htop -d is tenths of a second. htop -d 5 redraws twice a second and eats CPU doing it.
+- Load average counts processes stuck in uninterruptible sleep, so storage trouble shows up as load with an idle CPU. Read wa and the D column before blaming the CPU.
+- Adding up RES gives a figure larger than your RAM, because shared libraries are counted in every process that maps them. Trust avail Mem, not free.
+- htop: error opening terminal: xterm-256color means your local terminal sent a TERM value the server has no terminfo entry for. Run TERM=xterm htop, or install the ncurses-term package on the server.
 - Killing a service from htop usually just restarts it, because systemd is watching. Stop the unit with [systemctl](https://sshworkbench.com/cheatsheets/systemctl), and read [journalctl](https://sshworkbench.com/cheatsheets/journalctl) to find out why it was eating the CPU.
-
-### See processes without the flag soup
-
-SSH Workbench shows live CPU, memory, and process lists for every server over plain SSH, with kill and restart as buttons instead of PIDs.
-
-[Try free for 7 days](https://sshworkbench.com/#install)
 
 ## htop FAQ
 
@@ -250,7 +255,7 @@ VIRT is everything the process has mapped, including memory it reserved and neve
 
 ### How do I sort htop by memory?
 
-Press Shift+M for memory, Shift+P for CPU, Shift+T for time, or F6 to pick any column from a list. With the mouse on, clicking a column header sorts by it, and pressing I inverts the order. To start that way, run htop -s PERCENT_MEM (column names are the ones in F2 \> Columns). htop writes its settings to ~/.config/htop/htoprc when you quit, so the sort you left it on is the one you get next time; delete that file to go back to defaults. In top the same keys work, or start it with top -o %MEM, and press Shift+W to save the layout to ~/.toprc.
+Press Shift+M for memory, Shift+P for CPU, Shift+T for time, or F6 to pick any column from a list. With the mouse on, clicking a column header sorts by it, and pressing I inverts the order. To start that way, run htop -s PERCENT_MEM (column names are the ones in F2 > Columns). htop writes its settings to ~/.config/htop/htoprc when you quit, so the sort you left it on is the one you get next time; delete that file to go back to defaults. In top the same keys work, or start it with top -o %MEM, and press Shift+W to save the layout to ~/.toprc.
 
 ---
-Källa: https://sshworkbench.com/cheatsheets/top-htop
+Source: https://sshworkbench.com/cheatsheets/top-htop

@@ -2,27 +2,6 @@
 
 dnf is the package manager on RHEL, Fedora, CentOS Stream, Rocky, and Alma, and on every current release yum is a symlink to it: same program, same options. These dnf commands cover installing, upgrading, searching, transaction history, groups, repositories, and the things that changed in dnf5, and every one of them works if you type yum instead.
 
-Last updated September 11, 2026
-
-On this page
-
-- [Install and Remove](#install-and-remove)
-- [Update and Upgrade](#update-and-upgrade)
-- [Search, Info and provides](#search-info-and-provides)
-- [Missing Commands](#missing-commands)
-- [List Packages](#list-packages)
-- [History and Undo](#history-and-undo)
-- [Common Options](#common-options)
-- [Groups](#groups)
-- [Repositories](#repositories)
-- [Plugins](#plugins)
-- [Modules](#modules)
-- [Version Lock](#version-lock)
-- [Cache and Clean](#cache-and-clean)
-- [dnf5 Changes](#dnf5-changes)
-- [dnf, apt and pacman](#dnf-apt-and-pacman)
-- [Gotchas](#gotchas)
-
 ## Install and Remove
 
 Every command on this page also works with yum in place of dnf; on current systems they are the same program.
@@ -47,7 +26,14 @@ localinstall and groupinstall are dead names. dnf install ./file.rpm and dnf gro
 
 dnf check-update looks, dnf upgrade acts. There is no separate refresh step like apt update; dnf refreshes metadata by itself when the cache expires.
 
-[TABLE]
+| Command | What it does |
+|---|---|
+| `sudo dnf check-update` | Check for available package updates without installing |
+| `sudo dnf upgrade` | Upgrade all installed packages to their latest versions |
+| `sudo dnf upgrade-minimal` | Apply only updates that address bug fixes or enhancements |
+| `sudo dnf upgrade --security` | Apply only security-related updates |
+| `sudo dnf upgrade nginx` | Upgrade a specific package |
+| `sudo dnf autoremove` | Remove packages installed as dependencies that are no longer needed |
 
 ## Search, Info and provides
 
@@ -57,9 +43,9 @@ dnf provides is the feature worth memorizing: it tells you which package owns a 
 |----|----|
 | dnf search nginx | Search package names and summaries |
 | dnf info nginx | Version, repo, size, description |
-| dnf provides '\*/htpasswd' | Which package ships a command, wherever it lives |
+| dnf provides '*/htpasswd' | Which package ships a command, wherever it lives |
 | dnf provides /etc/nginx/nginx.conf | Which package owns a file |
-| dnf whatprovides '\*/dig' | Same command under its other name |
+| dnf whatprovides '*/dig' | Same command under its other name |
 | rpm -qf /usr/bin/ssh | Which installed package owns a file already on disk |
 | dnf repoquery -l nginx | List the files a package installs |
 | dnf repoquery --whatrequires nginx | What depends on a package |
@@ -68,15 +54,20 @@ dnf provides is the feature worth memorizing: it tells you which package owns a 
 
 Minimal RHEL installs and container images leave out tools people assume are always there. These are the ones dnf provides gets asked about most.
 
-[TABLE]
+| Command | What it does |
+|---|---|
+| `dnf provides /usr/bin/semanage` | Find which package provides a specific file path |
+| `dnf provides '*bin/dig'` | Find which package provides a binary using glob pattern |
+| `dnf provides semanage` | Search for package providing a command name |
+| `dnf repoquery -l nginx` | List all files installed by a remote package without installing |
 
 ## List Packages
 
 | Command | What it does |
 |----|----|
 | dnf list installed | Every installed package |
-| dnf list installed 'nginx\*' | Check whether something is installed |
-| dnf list available 'php\*' | What the enabled repos offer |
+| dnf list installed 'nginx*' | Check whether something is installed |
+| dnf list available 'php*' | What the enabled repos offer |
 | dnf list --upgrades | Just the packages with a newer version waiting |
 | dnf repoquery --userinstalled | Packages you asked for, not dependencies |
 | rpm -qa \| grep nginx | The classic rpm listing still works |
@@ -98,7 +89,15 @@ Every transaction gets an ID you can inspect and reverse. This is the thing apt 
 
 These work on any subcommand.
 
-[TABLE]
+| Option | Meaning |
+|---|---|
+| `-y`, `--assumeyes` | Automatically answer yes to all confirmation prompts |
+| `-q`, `--quiet` | Run quietly without unnecessary status messages |
+| `--nobest` | Do not limit transaction to best package candidates if dependencies fail |
+| `--allowerasing` | Allow erasing installed packages to resolve dependency conflicts |
+| `--downloadonly` | Download package files without running the transaction |
+| `--enablerepo=repo` | Temporarily enable a disabled repository |
+| `--disablerepo=repo` | Temporarily disable an active repository |
 
 A permanent proxy belongs in /etc/dnf/dnf.conf instead:
 
@@ -109,11 +108,14 @@ proxy_username=user
 proxy_password=secret
 ```
 
-Copy
-
 ## Groups
 
-[TABLE]
+| Command | What it does |
+|---|---|
+| `dnf group list` | List available and installed package groups |
+| `sudo dnf group install "Development Tools"` | Install all packages in a group |
+| `dnf group info "Development Tools"` | Show mandatory, default, and optional packages in a group |
+| `sudo dnf group remove "Development Tools"` | Remove all packages in a group |
 
 ## Repositories
 
@@ -180,7 +182,13 @@ clean all frees space under /var/cache/dnf, or /var/cache/libdnf5 on dnf5, and f
 
 Fedora 41 and later ship dnf5 as /usr/bin/dnf. It is mostly compatible, and these are the places it is not.
 
-[TABLE]
+| Feature | DNF (v4) | DNF5 |
+|---|---|---|
+| Implementation | Python + C (libcomps/libdnf) | Written in modern C++ |
+| Speed | Slower startup and metadata parsing | Significantly faster startup and lower memory footprint |
+| Daemon | No background daemon | Background daemon (`dnf5daemon-server`) with D-Bus API |
+| Command Aliases | `yum`, `dnf` | `dnf5` (symlinked to `dnf` on newer Fedora) |
+| Dependencies | Requires Python runtime | Standalone binary with no Python dependency |
 
 ## dnf, apt and pacman
 
@@ -195,40 +203,15 @@ The same tasks on Debian and Ubuntu are in the [apt cheat sheet](https://sshwork
 | Search | dnf search x | apt search x | pacman -Ss x |
 | Who owns a file | dnf provides /path | dpkg -S /path | pacman -Qo /path |
 | List installed | dnf list installed | apt list --installed | pacman -Q |
-| Undo a transaction | dnf history undo \<id\> | no equivalent | no equivalent |
+| Undo a transaction | dnf history undo <id> | no equivalent | no equivalent |
 
 ## Gotchas
 
-- dnf remove
-  also removes the dependencies that came with the package (
-  clean_requirements_on_remove
-  defaults to on), where apt needs a separate
-  autoremove
-  . Check the transaction summary before confirming.
-- There is no
-  dnf purge
-  . Removing a package leaves your edited config files behind as
-  .rpmsave
-  ; find them with
-  find /etc -name '\*.rpmsave'
-  .
-- dnf history undo
-  fails once the old package versions have left the repositories, which happens fast on Fedora. Undo soon or not at all.
-- check-update
-  's exit code 100 is a feature, not an error: scripts should treat 0 as "nothing to do", 100 as "updates available", 1 as a real failure.
-- Kernel updates install side by side rather than replacing, so
-  /boot
-  can fill up; dnf keeps the newest three by default (
-  installonly_limit
-  in
-  /etc/dnf/dnf.conf
-  ).
-
-### Patch every server from one place
-
-SSH Workbench shows pending updates across all your servers at once and runs them over plain SSH, so a security patch is a click instead of a loop over hostnames.
-
-[Try free for 7 days](https://sshworkbench.com/#install)
+- dnf remove also removes the dependencies that came with the package ( clean_requirements_on_remove defaults to on), where apt needs a separate autoremove. Check the transaction summary before confirming.
+- There is no dnf purge. Removing a package leaves your edited config files behind as.rpmsave; find them with find /etc -name '*.rpmsave'.
+- dnf history undo fails once the old package versions have left the repositories, which happens fast on Fedora. Undo soon or not at all.
+- check-update 's exit code 100 is a feature, not an error: scripts should treat 0 as "nothing to do", 100 as "updates available", 1 as a real failure.
+- Kernel updates install side by side rather than replacing, so /boot can fill up; dnf keeps the newest three by default ( installonly_limit in /etc/dnf/dnf.conf).
 
 ## DNF & YUM FAQ
 
@@ -246,11 +229,11 @@ sudo dnf upgrade. dnf update is the same command under an older name, not a sepa
 
 ### How do I find which package provides a command?
 
-dnf provides '\*/dig' searches every enabled repo, installed or not, for a package shipping a file called dig in any directory; dnf whatprovides is the same command. Quote the pattern so the shell leaves it alone. A full path works too: dnf provides /etc/nginx/nginx.conf. The reverse lookups are in repoquery: dnf repoquery -l \<pkg\> lists what a package ships and dnf repoquery --whatrequires \<pkg\> shows what breaks if you remove it. For a file already on disk, rpm -qf /path answers instantly without touching the network.
+dnf provides '*/dig' searches every enabled repo, installed or not, for a package shipping a file called dig in any directory; dnf whatprovides is the same command. Quote the pattern so the shell leaves it alone. A full path works too: dnf provides /etc/nginx/nginx.conf. The reverse lookups are in repoquery: dnf repoquery -l <pkg> lists what a package ships and dnf repoquery --whatrequires <pkg> shows what breaks if you remove it. For a file already on disk, rpm -qf /path answers instantly without touching the network.
 
 ### How do I undo a dnf transaction?
 
-Find the ID with dnf history, check it with dnf history info \<id\>, then sudo dnf history undo \<id\> reverses exactly that transaction: installs removed, removals reinstalled, upgrades downgraded. dnf history undo last takes the most recent one, and dnf history rollback \<id\> unwinds everything after that point instead. Undo needs the old versions to still exist in the repos, so it gets less reliable with age, fast on Fedora. Neither apt nor pacman has anything like it.
+Find the ID with dnf history, check it with dnf history info <id>, then sudo dnf history undo <id> reverses exactly that transaction: installs removed, removals reinstalled, upgrades downgraded. dnf history undo last takes the most recent one, and dnf history rollback <id> unwinds everything after that point instead. Undo needs the old versions to still exist in the repos, so it gets less reliable with age, fast on Fedora. Neither apt nor pacman has anything like it.
 
 ---
-Källa: https://sshworkbench.com/cheatsheets/dnf-yum
+Source: https://sshworkbench.com/cheatsheets/dnf-yum

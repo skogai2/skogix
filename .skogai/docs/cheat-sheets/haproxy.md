@@ -2,40 +2,25 @@
 
 HAProxy is the TCP and HTTP load balancer in front of many busy Linux sites. This sheet covers the config file itself, frontends, backends, ACLs, SSL, timeouts, and rate limiting, alongside the commands that check a config, reload it without dropping connections, and drive the stats socket.
 
-Last updated September 11, 2026
-
-On this page
-
-- [Config File](#config-file)
-- [Frontend, Backend & Listen](#frontend-backend-listen)
-- [Check the Config](#check-the-config)
-- [Service Control](#service-control)
-- [Stats Socket](#stats-socket)
-- [Logs](#logs)
-- [Termination State](#termination-state)
-- [Health Checks](#health-checks)
-- [Command Line Options](#command-line-options)
-- [Balance](#balance)
-- [ACLs](#acls)
-- [Headers](#headers)
-- [HTTPS & SSL](#https-ssl)
-- [Redirects](#redirects)
-- [Timeouts & Limits](#timeouts-limits)
-- [Rate Limiting](#rate-limiting)
-- [TCP Mode](#tcp-mode)
-- [SNI](#sni)
-- [Docker](#docker)
-- [Install](#install)
-- [Keepalived](#keepalived)
-- [Gotchas](#gotchas)
-
 ## Config File
 
 One file, /etc/haproxy/haproxy.cfg, read top to bottom and built out of named blocks.
 
-[TABLE]
+| Section | Purpose |
+|---|---|
+| `global` | Process-wide settings (user, group, logging, SSL ciphers) |
+| `defaults` | Default settings inherited by frontend and backend sections |
+| `frontend` | Defines client-facing listening sockets, SSL, and routing rules |
+| `backend` | Defines pool of upstream servers and healthcheck policies |
+| `listen` | Combines frontend and backend into a single self-contained block |
 
-[TABLE]
+| Section | Purpose |
+|---|---|
+| `global` | Process-wide settings (user, group, logging, SSL ciphers) |
+| `defaults` | Default settings inherited by frontend and backend sections |
+| `frontend` | Defines client-facing listening sockets, SSL, and routing rules |
+| `backend` | Defines pool of upstream servers and healthcheck policies |
+| `listen` | Combines frontend and backend into a single self-contained block |
 
 There is no include directive. Split a large config by passing a directory to -f (or by dropping files in conf.d/), which loads every .cfg in it in name order. A second defaults block resets the inheritance for everything after it, which is how one file serves both HTTP and TCP sections.
 
@@ -66,8 +51,6 @@ backend bk_web
     server web2 10.0.0.12:8080 check
 ```
 
-Copy
-
 The built-in stats page is the classic listen block:
 
 ```
@@ -78,8 +61,6 @@ listen stats
     stats refresh 10s
     stats auth admin:changeme
 ```
-
-Copy
 
 Add stats admin if TRUE to enable/disable servers from the page itself; keep the port firewalled or bound to an internal address.
 
@@ -95,11 +76,9 @@ Always check before a reload; a config error found at reload time is a config er
 
 Chain the check with the reload so a typo never goes live:
 
-```
+```bash
 haproxy -c -f /etc/haproxy/haproxy.cfg && sudo systemctl reload haproxy
 ```
-
-Copy
 
 ## Service Control
 
@@ -126,16 +105,12 @@ global
     stats socket /run/haproxy/admin.sock mode 660 level admin
 ```
 
-Copy
-
 Send commands with socat, one-shot or interactive:
 
 ```
 echo "show stat" | socat stdio /run/haproxy/admin.sock
 socat readline /run/haproxy/admin.sock    # interactive; type "prompt" to keep it open
 ```
-
-Copy
 
 | Socket command | What it does |
 |----|----|
@@ -161,8 +136,6 @@ show stat prints around 80 columns. This trims it to name, status, and weight:
 echo "show stat" | socat stdio /run/haproxy/admin.sock | cut -d, -f1,2,18,19 | column -s, -t
 ```
 
-Copy
-
 ## Logs
 
 HAProxy logs through syslog, not to a file of its own. On Debian and Ubuntu the packaged rsyslog rule writes traffic to /var/log/haproxy.log.
@@ -172,8 +145,8 @@ HAProxy logs through syslog, not to a file of its own. On Debian and Ubuntu the 
 | tail -f /var/log/haproxy.log | Follow live traffic logs |
 | journalctl -u haproxy -n 50 | Process events only: starts, reloads, config warnings |
 | grep ' 503 ' /var/log/haproxy.log | Find requests that got a 503 |
-| halog -srv \< /var/log/haproxy.log | Per-server report: errors and response times (halog ships with HAProxy) |
-| halog -u \< /var/log/haproxy.log | Per-URL report from the same log |
+| halog -srv < /var/log/haproxy.log | Per-server report: errors and response times (halog ships with HAProxy) |
+| halog -u < /var/log/haproxy.log | Per-URL report from the same log |
 
 The config side that makes traffic logging work:
 
@@ -188,15 +161,19 @@ defaults
     option dontlognull
 ```
 
-Copy
-
 journalctl -u haproxy is still where reload failures land; the [journalctl cheat sheet](https://sshworkbench.com/cheatsheets/journalctl) covers filtering it.
 
 ## Termination State
 
 Every option httplog line ends with a four-character field, the session state at disconnection. The first character says who ended the session and the second says what it was doing, which is usually enough to tell a client problem from a backend problem.
 
-[TABLE]
+| Flag Code | Meaning | Common Cause |
+|---|---|---|
+| `CD` | Client disconnected | Client aborted connection before transfer finished |
+| `sD` | Server disconnected | Upstream server closed connection unexpectedly |
+| `CC` | Client aborted during connect | Client dropped while waiting for backend connection |
+| `CS` | Connection refused by server | Backend server down or port unreachable |
+| `PR` | Proxy rejected | Client request rejected by HAProxy ACL or inspection rule |
 
 Lowercase first character means a timeout, uppercase means an abort or an explicit action. A run of sH-- points at timeout server being shorter than the app's slowest response.
 
@@ -214,8 +191,6 @@ backend bk_web
     server spare 10.0.0.13:8080 check backup
 ```
 
-Copy
-
 | Server option | What it does                                   |
 |---------------|------------------------------------------------|
 | check         | Enable health checks on this server            |
@@ -229,11 +204,20 @@ Watch the results with show servers state on the stats socket, or on the stats p
 
 ## Command Line Options
 
-[TABLE]
+| Command | What it does |
+|---|---|
+| `haproxy -c -f /etc/haproxy/haproxy.cfg` | Check configuration syntax without starting |
+| `haproxy -f /etc/haproxy/haproxy.cfg -D` | Start HAProxy in daemon mode |
+| `haproxy -f cfg -st $(cat /run/haproxy.pid)` | Gracefully reload with zero-downtime socket transfer |
 
 ## Balance
 
-[TABLE]
+| Algorithm | Behavior |
+|---|---|
+| `roundrobin` | Sequential distribution with dynamic server weights |
+| `leastconn` | Routes connection to backend server with lowest active connection count |
+| `source` | Hashes client IP to ensure same client reaches same backend |
+| `uri` | Hashes requested URI path for caching proxy efficiency |
 
 Cookie-based sticky sessions, which survive a server coming back better than balance source does:
 
@@ -244,8 +228,6 @@ backend bk_app
     server app1 10.0.0.11:8080 check cookie a1
     server app2 10.0.0.12:8080 check cookie a2
 ```
-
-Copy
 
 balance source re-hashes when a server goes down, which moves other clients too. The cookie only moves the clients on the dead server.
 
@@ -267,17 +249,20 @@ frontend fe_web
     default_backend bk_web
 ```
 
-Copy
-
 Anonymous ACLs inline in braces work too, as in redirect scheme https unless { ssl_fc }.
 
 ## Headers
 
 The backend sees HAProxy's IP, not the client's, until you say otherwise. option forwardfor belongs in defaults so every backend inherits it.
 
-[TABLE]
+| Directive | Action |
+|---|---|
+| `http-request set-header X-Forwarded-Proto https` | Set header to explicit value |
+| `http-request add-header X-Real-IP %[src]` | Append header with client IP address |
+| `http-request del-header Proxy` | Remove dangerous or untrusted header |
+| `http-response set-header X-Server %s` | Return backend server name in response header |
 
-%\[...\] is a fetch evaluated per request; %{+Q}\[...\] quotes the result, which matters for anything that can contain spaces. The app still has to trust X-Forwarded-For, and it should only do that when HAProxy is the only thing that can reach it.
+%[...] is a fetch evaluated per request; %{+Q}[...] quotes the result, which matters for anything that can contain spaces. The app still has to trust X-Forwarded-For, and it should only do that when HAProxy is the only thing that can reach it.
 
 ## HTTPS & SSL
 
@@ -290,17 +275,13 @@ frontend fe_https
     default_backend bk_web
 ```
 
-Copy
-
 Building that PEM from a Let's Encrypt certificate:
 
-```
+```bash
 sudo cat /etc/letsencrypt/live/example.com/fullchain.pem \
          /etc/letsencrypt/live/example.com/privkey.pem \
   | sudo tee /etc/haproxy/certs/example.com.pem > /dev/null
 ```
-
-Copy
 
 Point crt at a directory to load every certificate in it; HAProxy picks the right one per request by SNI. Verify the served chain with the [SSL checker](https://sshworkbench.com/tools/ssl-checker).
 
@@ -313,8 +294,6 @@ frontend fe_web
     http-request redirect scheme https code 301 unless { ssl_fc }
     http-request redirect prefix https://example.com code 301 if { hdr(host) -i www.example.com }
 ```
-
-Copy
 
 The first rule sends every plain HTTP request to HTTPS; the second folds www onto the bare domain while keeping the path.
 
@@ -334,9 +313,13 @@ defaults
     timeout tunnel 1h
 ```
 
-Copy
-
-[TABLE]
+| Directive | Recommended Default | Purpose |
+|---|---|---|
+| `timeout connect` | `5s` | Max time waiting to establish connection with backend |
+| `timeout client` | `50s` | Max inactivity time on client side |
+| `timeout server` | `50s` | Max inactivity time on server side |
+| `timeout http-request` | `10s` | Max time waiting for complete HTTP request headers |
+| `maxconn` | `50000` | Maximum simultaneous open connections |
 
 Raise timeout tunnel for WebSockets: after the upgrade, timeout client and timeout server no longer apply, so a short tunnel timeout is what cuts idle sockets.
 
@@ -351,8 +334,6 @@ frontend fe_web
     http-request track-sc0 src
     http-request deny deny_status 429 if { sc_http_req_rate(0) gt 100 }
 ```
-
-Copy
 
 | Socket command | What it does |
 |----|----|
@@ -382,8 +363,6 @@ backend bk_pg
     server pg2 10.0.0.22:5432 check backup
 ```
 
-Copy
-
 leastconn beats roundrobin for long-lived connections like database sessions.
 
 ## SNI
@@ -400,15 +379,13 @@ frontend fe_tls_passthrough
     use_backend bk_app2 if { req_ssl_sni -i app2.example.com }
 ```
 
-Copy
-
 The backends stay mode tcp and the apps keep their own certificates. When HAProxy terminates TLS itself, match on ssl_fc_sni instead of req_ssl_sni.
 
 ## Docker
 
 The official image reads /usr/local/etc/haproxy/haproxy.cfg, not /etc/haproxy, and runs as the haproxy user. Docker's default capability set includes NET_BIND_SERVICE, so binding :80 inside the container still works.
 
-```
+```bash
 docker run -d --name hap -p 80:80 -p 443:443 \
   -v "$PWD/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro" \
   haproxy:3.0
@@ -417,8 +394,6 @@ docker run -d --name hap -p 80:80 -p 443:443 \
 docker run --rm -v "$PWD/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro" \
   haproxy:3.0 haproxy -c -f /usr/local/etc/haproxy/haproxy.cfg
 ```
-
-Copy
 
 | Command | What it does |
 |----|----|
@@ -434,13 +409,15 @@ global
     log stdout format raw local0 info
 ```
 
-Copy
-
 The [docker cheat sheet](https://sshworkbench.com/cheatsheets/docker) covers the container side.
 
 ## Install
 
-[TABLE]
+| Distribution | Command |
+|---|---|
+| Debian / Ubuntu | `sudo apt install haproxy` |
+| Arch Linux | `sudo pacman -S haproxy` |
+| Fedora / RHEL | `sudo dnf install haproxy` |
 
 The distro package is fine for most sites; the PPA is for when you need a feature from a newer branch. The http-check send syntax used above needs 2.2 or newer, so check haproxy -v before copying config off the internet.
 
@@ -468,67 +445,18 @@ vrrp_instance VI_1 {
 }
 ```
 
-Copy
-
 The backup node uses state BACKUP and a lower priority. Set net.ipv4.ip_nonlocal_bind=1 in sysctl on both so HAProxy can bind the floating IP while it lives on the other box.
 
 ## Gotchas
 
-- systemctl restart
-  drops every active connection. After a config edit,
-  reload
-  is what you want, and only after
-  haproxy -c
-  passes.
-- Stats socket changes (
-  disable server
-  ,
-  set weight
-  ,
-  set maxconn
-  ) vanish at the next reload. Anything permanent belongs in the config file.
-- The
-  crt
-  PEM must contain the private key. Certbot's
-  fullchain.pem
-  alone fails at startup with "unable to load SSL private key".
-- No traffic logs usually means a missing
-  log /dev/log local0
-  or rsyslog rule;
-  journalctl -u haproxy
-  only ever shows process events. With
-  chroot
-  enabled, the syslog socket must exist inside the chroot (the Debian package sets this up).
-- A 503 from HAProxy itself, with the backends supposedly fine, means no server in the chosen backend passed its health check.
-  show servers state
-  on the stats socket says why.
-- mode
-  must match between a frontend and the backends it routes to;
-  haproxy -c
-  catches the mismatch, another reason to run it every time.
-- "cannot bind socket (permission denied)" on
-  :80
-  or
-  :443
-  means HAProxy is no longer root at bind time. The packaged unit binds as root and then drops to the
-  haproxy
-  user; a hardened unit or a container needs
-  CAP_NET_BIND_SERVICE
-  instead. The same message with a bind on a floating IP usually needs
-  net.ipv4.ip_nonlocal_bind=1
-  .
-- mode
-  and the timeouts come from the nearest
-  defaults
-  block above a section, not from the first one in the file. Add a second
-  defaults
-  for the TCP sections and everything after it inherits that one, HTTP sections included.
-
-### Config changes without the white knuckles
-
-SSH Workbench lets you browse and edit configs, tail logs, and restart the service from one place over plain SSH, so a reload never means six terminal tabs.
-
-[Try free for 7 days](https://sshworkbench.com/#install)
+- systemctl restart drops every active connection. After a config edit, reload is what you want, and only after haproxy -c passes.
+- Stats socket changes ( disable server, set weight, set maxconn) vanish at the next reload. Anything permanent belongs in the config file.
+- The crt PEM must contain the private key. Certbot's fullchain.pem alone fails at startup with "unable to load SSL private key".
+- No traffic logs usually means a missing log /dev/log local0 or rsyslog rule; journalctl -u haproxy only ever shows process events. With chroot enabled, the syslog socket must exist inside the chroot (the Debian package sets this up).
+- A 503 from HAProxy itself, with the backends supposedly fine, means no server in the chosen backend passed its health check. show servers state on the stats socket says why.
+- mode must match between a frontend and the backends it routes to; haproxy -c catches the mismatch, another reason to run it every time.
+- "cannot bind socket (permission denied)" on:80 or:443 means HAProxy is no longer root at bind time. The packaged unit binds as root and then drops to the haproxy user; a hardened unit or a container needs CAP_NET_BIND_SERVICE instead. The same message with a bind on a floating IP usually needs net.ipv4.ip_nonlocal_bind=1.
+- mode and the timeouts come from the nearest defaults block above a section, not from the first one in the file. Add a second defaults for the TCP sections and everything after it inherits that one, HTTP sections included.
 
 ## HAProxy FAQ
 
@@ -553,4 +481,4 @@ sudo systemctl reload haproxy. Modern packages run HAProxy in master-worker mode
 To syslog, not to a file of its own. The config needs log /dev/log local0 in the global section and log global with option httplog in defaults; the Debian and Ubuntu packages ship an rsyslog rule that then writes traffic to /var/log/haproxy.log. journalctl -u haproxy shows only process events such as starts, reloads, and config warnings. If the log file stays empty, the rsyslog rule is missing or HAProxy is chrooted without a syslog socket inside the chroot.
 
 ---
-Källa: https://sshworkbench.com/cheatsheets/haproxy
+Source: https://sshworkbench.com/cheatsheets/haproxy

@@ -2,27 +2,6 @@
 
 Traefik is a reverse proxy that configures itself from Docker labels, Kubernetes CRDs, or config files, so there is little to type and a lot to look up. This sheet covers router rule syntax, the labels for docker compose, static vs dynamic config, middlewares, Let's Encrypt, IngressRoute, TCP and UDP routing, logs, and the few CLI commands Traefik has.
 
-Last updated September 11, 2026
-
-On this page
-
-- [Router Rules](#router-rules)
-- [Docker Labels](#docker-labels)
-- [Static vs Dynamic Config](#static-vs-dynamic-config)
-- [EntryPoints](#entrypoints)
-- [Middlewares](#middlewares)
-- [Let's Encrypt](#lets-encrypt)
-- [TCP & UDP](#tcp-udp)
-- [Kubernetes](#kubernetes)
-- [Plugins](#plugins)
-- [CLI & Flags](#cli-flags)
-- [Logs & Metrics](#logs-metrics)
-- [Healthcheck](#healthcheck)
-- [Dashboard & API](#dashboard-api)
-- [Running & Debugging](#running-debugging)
-- [v2 to v3](#v2-to-v3)
-- [Gotchas](#gotchas)
-
 ## Router Rules
 
 Rules live on routers, in a label or a dynamic config file. Values go in backticks, never quotes. Combine matchers with && (and), \|\| (or), ! (not), and parentheses.
@@ -34,8 +13,8 @@ Rules live on routers, in a label or a dynamic config file. Values go in backtic
 | Host(\`example.com\`) && PathPrefix(\`/api\`) | Both conditions at once |
 | PathPrefix(\`/api\`) | Any path starting with /api |
 | Path(\`/health\`) | That exact path only |
-| HostRegexp(\`^.+\\example\\com\$\`) | Hostnames by Go regex (v3 syntax) |
-| PathRegexp(\`^/items/\[0-9\]+\$\`) | Paths by Go regex |
+| HostRegexp(\`^.+\\example\\com$\`) | Hostnames by Go regex (v3 syntax) |
+| PathRegexp(\`^/items/[0-9]+$\`) | Paths by Go regex |
 | Header(\`X-Env\`, \`staging\`) | Exact header match |
 | HeaderRegexp(\`Accept\`, \`json\`) | Header value by regex |
 | Query(\`token\`, \`secret\`) | Query parameter key and value |
@@ -43,7 +22,7 @@ Rules live on routers, in a label or a dynamic config file. Values go in backtic
 | ClientIP(\`10.0.0.0/8\`) | Source IP or CIDR range |
 | !PathPrefix(\`/admin\`) | Everything except /admin |
 
-When two routers both match, the longer rule string wins. Override with traefik.http.routers.\<name\>.priority=10 (higher wins).
+When two routers both match, the longer rule string wins. Override with traefik.http.routers.<name>.priority=10 (higher wins).
 
 v2 differences: HostRegexp used {name:regex} placeholders instead of plain regex, the matchers were Headers() and HeadersRegexp() (plural), and Host()/PathPrefix() accepted comma-separated values. In v3 chain them with \|\|.
 
@@ -51,11 +30,17 @@ v2 differences: HostRegexp used {name:regex} placeholders instead of plain regex
 
 Labels on the app container, not on Traefik. The [Traefik label generator](https://sshworkbench.com/tools/traefik-label-generator) builds these interactively.
 
-[TABLE]
+| Docker Label | Example Value | Purpose |
+|---|---|---|
+| `traefik.enable` | `true` | Expose container to Traefik |
+| `traefik.http.routers.app.rule` | `Host(\`app.example.com\`)` | Routing rule for incoming HTTP requests |
+| `traefik.http.routers.app.entrypoints` | `websecure` | Entrypoint to attach router to (port 443) |
+| `traefik.http.routers.app.tls.certresolver` | `myresolver` | ACME resolver to issue SSL certificate |
+| `traefik.http.services.app.loadbalancer.server.port` | `8080` | Internal container port to route traffic to |
 
 A working docker compose setup:
 
-```
+```bash
 services:
   traefik:
     image: traefik:v3
@@ -80,15 +65,13 @@ services:
       - traefik.http.services.app.loadbalancer.server.port=3000
 ```
 
-Copy
-
 The router name (app here) is arbitrary; it just has to be the same across that container's labels.
 
 ## Static vs Dynamic Config
 
-Static config is read once at startup: entrypoints, providers, certificate resolvers, logging. It comes from traefik.yml (looked up in /etc/traefik/), CLI flags, or TRAEFIK\_\* environment variables; pick one style. Dynamic config is routers, services, and middlewares; it comes from labels or watched files and applies without a restart.
+Static config is read once at startup: entrypoints, providers, certificate resolvers, logging. It comes from traefik.yml (looked up in /etc/traefik/), CLI flags, or TRAEFIK\_* environment variables; pick one style. Dynamic config is routers, services, and middlewares; it comes from labels or watched files and applies without a restart.
 
-```
+```bash
 # /etc/traefik/traefik.yml (static)
 entryPoints:
   web:
@@ -106,8 +89,6 @@ providers:
 api:
   dashboard: true
 ```
-
-Copy
 
 A dynamic file routes to things that are not containers, like a service on the host:
 
@@ -128,8 +109,6 @@ http:
           - url: http://192.168.1.10:3000
 ```
 
-Copy
-
 Changing a dynamic file or a label applies immediately. Changing traefik.yml needs a container restart.
 
 ## EntryPoints
@@ -144,7 +123,7 @@ EntryPoints are the ports Traefik listens on. The names web and websecure are co
 | --entrypoints.web.address=:80 | Same, as a CLI flag |
 | --entrypoints.websecure.asdefault=true | Make this the default for routers that name none (v3) |
 | --entrypoints.websecure.http3=true | Serve HTTP/3 on this entrypoint |
-| --entrypoints.websecure.forwardedheaders.trustedips=173.245.48.0/20 | Trust X-Forwarded-\* only from these IPs |
+| --entrypoints.websecure.forwardedheaders.trustedips=173.245.48.0/20 | Trust X-Forwarded-* only from these IPs |
 | --entrypoints.web.proxyprotocol.trustedips=10.0.0.0/8 | Accept the PROXY protocol from these IPs |
 | --entrypoints.websecure.transport.respondingtimeouts.readtimeout=60s | Per-entrypoint timeouts |
 
@@ -163,49 +142,53 @@ entryPoints:
           scheme: https
 ```
 
-Copy
-
 ## Middlewares
 
-Define a middleware once, attach it to any router with traefik.http.routers.\<router\>.middlewares=\<name\>. Reference one from another provider with a suffix: auth@file, auth@docker, auth@kubernetescrd.
+Define a middleware once, attach it to any router with traefik.http.routers.<router>.middlewares=<name>. Reference one from another provider with a suffix: auth@file, auth@docker, auth@kubernetescrd.
 
-[TABLE]
+| Middleware Type | Example Configuration | Purpose |
+|---|---|---|
+| Basic Auth | `traefik.http.middlewares.auth.basicauth.users=user:hash` | HTTP basic authentication gate |
+| Redirect Scheme | `traefik.http.middlewares.https-redirect.redirectscheme.scheme=https` | HTTP to HTTPS redirection |
+| Strip Prefix | `traefik.http.middlewares.strip.stripprefix.prefixes=/api` | Remove prefix before passing to backend |
+| Rate Limit | `traefik.http.middlewares.limit.ratelimit.average=100` | Rate limiting per IP address |
 
-In a compose file every \$ in a basicauth hash or a regex replacement must be doubled to \$\$ or compose eats it as a variable.
+In a compose file every $ in a basicauth hash or a regex replacement must be doubled to $$ or compose eats it as a variable.
 
 ## Let's Encrypt
 
 Certificate resolvers are static config. Traefik requests and renews certificates on its own and stores them in acme.json.
 
-```
+```bash
 certificatesResolvers:
   letsencrypt:
     acme:
-      email: [email protected]
+      email: git@github.com
       storage: /letsencrypt/acme.json
       httpChallenge:
         entryPoint: web
 ```
 
-Copy
-
-[TABLE]
+| Configuration Key | Example Value | Description |
+|---|---|---|
+| `certificatesResolvers.myresolver.acme.email` | `admin@example.com` | Registration email for Let's Encrypt |
+| `certificatesResolvers.myresolver.acme.storage` | `/etc/traefik/acme.json` | JSON file storing generated TLS certificates |
+| `certificatesResolvers.myresolver.acme.tlschallenge` | `true` | Use TLS-ALPN-01 ACME verification challenge |
+| `certificatesResolvers.myresolver.acme.httpchallenge` | `true` | Use HTTP-01 ACME verification challenge |
 
 A wildcard from Cloudflare needs the DNS challenge in static config and an API token in the environment:
 
-```
+```bash
 certificatesResolvers:
   letsencrypt:
     acme:
-      email: [email protected]
+      email: git@github.com
       storage: /letsencrypt/acme.json
       dnsChallenge:
         provider: cloudflare
         resolvers:
           - "1.1.1.1:53"
 ```
-
-Copy
 
 ```
 # same compose service
@@ -217,8 +200,6 @@ labels:
   - traefik.http.routers.app.tls.domains[0].sans=*.example.com
 ```
 
-Copy
-
 Let's Encrypt limits issuance to 5 duplicate certificates a week, so keep acme.json in a volume and use the staging CA while testing. "Could not find zone for domain" means the token cannot read that zone, or the apex is delegated to different nameservers than the one you asked for.
 
 ## TCP & UDP
@@ -228,7 +209,7 @@ Non-HTTP services get their own router type on their own entrypoint. TCP rules m
 | Label | What it does |
 |----|----|
 | --entrypoints.postgres.address=:5432 | Add a TCP entrypoint (static config) |
-| traefik.tcp.routers.db.rule=HostSNI(\`\*\`) | Match anything on that entrypoint (the only rule for plain TCP) |
+| traefik.tcp.routers.db.rule=HostSNI(\`*\`) | Match anything on that entrypoint (the only rule for plain TCP) |
 | traefik.tcp.routers.db.entrypoints=postgres | Which entrypoint the router listens on |
 | traefik.tcp.services.db.loadbalancer.server.port=5432 | Backend port |
 | traefik.tcp.routers.web.rule=HostSNI(\`db.example.com\`) | Route by SNI, only possible when the client sends TLS |
@@ -237,7 +218,7 @@ Non-HTTP services get their own router type on their own entrypoint. TCP rules m
 | traefik.udp.routers.dns.entrypoints=udp-dns | UDP router; UDP has no matchers, so no rule |
 | traefik.udp.services.dns.loadbalancer.server.port=53 | UDP backend port |
 
-Protocols without SNI (SSH, Postgres, plain MQTT) can only use HostSNI(\`\*\`), and one entrypoint holds one such router. Give each backend its own port. With tls.passthrough=true Traefik never decrypts, so no middleware or certificate resolver applies to that router.
+Protocols without SNI (SSH, Postgres, plain MQTT) can only use HostSNI(\`*\`), and one entrypoint holds one such router. Give each backend its own port. With tls.passthrough=true Traefik never decrypts, so no middleware or certificate resolver applies to that router.
 
 ## Kubernetes
 
@@ -275,8 +256,6 @@ spec:
     certResolver: letsencrypt
 ```
 
-Copy
-
 Annotations do the same job on a plain Ingress:
 
 ```
@@ -286,8 +265,6 @@ metadata:
     traefik.ingress.kubernetes.io/router.tls: "true"
     traefik.ingress.kubernetes.io/router.middlewares: default-strip@kubernetescrd
 ```
-
-Copy
 
 The CRD API group is traefik.io/v1alpha1 in v3 and traefik.containo.us/v1alpha1 in v2; applying v2 manifests to a v3 install fails with "no matches for kind". A middleware in another namespace needs that namespace in the reference and providers.kubernetesCRD.allowCrossNamespace=true.
 
@@ -304,23 +281,35 @@ experimental:
       version: v1.4.5
 ```
 
-Copy
-
-[TABLE]
+| Directive | Context | Purpose |
+|---|---|---|
+| `experimental.plugins` | Static config | Declare plugin name, module path, and pinned version |
+| `middlewares.myplugin` | Dynamic config | Instantiate declared plugin with configuration options |
+| `traefik.http.routers.app.middlewares` | Router label | Attach plugin middleware to target router |
 
 Plugins load only at startup, so adding one means restarting Traefik, not just editing a label.
 
 ## CLI & Flags
 
-The binary has two subcommands; everything else is flags. Every flag maps to a static config key and to a TRAEFIK\_\* environment variable.
+The binary has two subcommands; everything else is flags. Every flag maps to a static config key and to a TRAEFIK\_* environment variable.
 
-[TABLE]
+| Flag | Purpose |
+|---|---|
+| `--api.dashboard=true` | Enable web UI dashboard |
+| `--entrypoints.web.address=:80` | Bind HTTP entrypoint on port 80 |
+| `--entrypoints.websecure.address=:443` | Bind HTTPS entrypoint on port 443 |
+| `--providers.docker=true` | Enable Docker container discovery provider |
+| `--providers.docker.exposedbydefault=false` | Require explicit `traefik.enable=true` label |
 
 ## Logs & Metrics
 
 Two separate logs. The Traefik log is about Traefik; the access log is about requests. Both go to stdout unless given a path.
 
-[TABLE]
+| Directive | Value / Purpose |
+|---|---|
+| `log.level` | `DEBUG`, `INFO`, `WARN`, `ERROR` |
+| `accessLog` | `true` (outputs structured JSON or Common Log Format) |
+| `metrics.prometheus` | Exposes `/metrics` endpoint for Prometheus scraping |
 
 Access logs written to a file inside the container disappear on recreate unless the path is on a volume. docker compose logs traefik only shows what went to stdout.
 
@@ -328,7 +317,10 @@ Access logs written to a file inside the container disappear on recreate unless 
 
 Two different things share the name: checking Traefik itself, and Traefik checking your backends.
 
-[TABLE]
+| Command / Flag | Purpose |
+|---|---|
+| `--ping=true` | Enable Traefik internal ping endpoint |
+| `traefik healthcheck` | CLI command used in Docker `HEALTHCHECK` |
 
 When a backend fails its check, Traefik takes it out of rotation until it passes again; with one replica that means 404s, so backend healthchecks matter most with multiple replicas.
 
@@ -336,7 +328,10 @@ When a backend fails its check, Traefik takes it out of rotation until it passes
 
 The dashboard shows every router, service, and middleware, and flags configuration errors that logs bury.
 
-[TABLE]
+| Setting | Description |
+|---|---|
+| `--api.insecure=true` | Exposes dashboard directly on port 8080 (dev only) |
+| Secure Router Setup | Protect dashboard router with TLS and Basic Auth in production |
 
 Never ship api.insecure=true on a public host; the dashboard reveals every internal hostname and middleware secret name.
 
@@ -344,7 +339,11 @@ Never ship api.insecure=true on a public host; the dashboard reveals every inter
 
 Traefik runs as a container, so day-to-day operation is docker compose. The [docker compose cheat sheet](https://sshworkbench.com/cheatsheets/docker-compose) covers the rest.
 
-[TABLE]
+| Action | Command / Method |
+|---|---|
+| View Traefik logs | `docker compose logs -f traefik` |
+| Validate routing rules | Check Dashboard HTTP Routers list |
+| Inspect ACME certificate state | Verify file permissions `chmod 600 acme.json` |
 
 More container commands are on the [docker cheat sheet](https://sshworkbench.com/cheatsheets/docker).
 
@@ -352,45 +351,24 @@ More container commands are on the [docker cheat sheet](https://sshworkbench.com
 
 Most setups move over untouched. These are the renames that stop a container from starting or silently drop a route.
 
-[TABLE]
+| Feature | Traefik v2 | Traefik v3 |
+|---|---|---|
+| WebAssembly (Wasm) | Experimental | First-class native support via Coraza |
+| OpenTelemetry | Basic tracing | Full OpenTelemetry tracing and metrics |
+| HTTP/3 | Experimental | Stable and enabled by default |
 
 Run the old config against v3 with --log.level=DEBUG in a throwaway container first; unknown keys are reported by name at startup.
 
 ## Gotchas
 
-- Rules use backticks around values. Quotes inside
-  Host("...")
-  fail silently in some setups and loudly in others; backticks always work.
-- Set
-  exposedByDefault: false
-  . Without it every container on the socket gets routed, including ones you never meant to publish.
-- A 404 from Traefik usually means no router matched (wrong Host, wrong entrypoint); a "Bad Gateway" means the router matched but Traefik cannot reach the container, almost always a network mismatch. Put both containers on one network or set
-  traefik.docker.network
-  .
-- When a container exposes several ports, Traefik picks one arbitrarily. Pin it with
-  loadbalancer.server.port
-  .
-- \$
-  doubling in compose applies to basicauth hashes only in compose files, not in dynamic file config. The same hash needs
-  \$\$
-  in a label and
-  \$
-  in a YAML file.
+- Rules use backticks around values. Quotes inside Host("...") fail silently in some setups and loudly in others; backticks always work.
+- Set exposedByDefault: false. Without it every container on the socket gets routed, including ones you never meant to publish.
+- A 404 from Traefik usually means no router matched (wrong Host, wrong entrypoint); a "Bad Gateway" means the router matched but Traefik cannot reach the container, almost always a network mismatch. Put both containers on one network or set traefik.docker.network.
+- When a container exposes several ports, Traefik picks one arbitrarily. Pin it with loadbalancer.server.port.
+- $ doubling in compose applies to basicauth hashes only in compose files, not in dynamic file config. The same hash needs $$ in a label and $ in a YAML file.
 - If HTTPS works but keeps serving the "TRAEFIK DEFAULT CERT", the resolver failed; check the logs for acme errors and confirm port 80 (HTTP challenge) reaches Traefik.
 - "Too many redirects" behind Cloudflare means Cloudflare SSL is set to Flexible while Traefik also redirects to HTTPS. Set Cloudflare to Full (strict).
-- Upgrading v2 to v3 mostly just works, but
-  HostRegexp
-  placeholder rules,
-  Headers()
-  matchers, and
-  ipWhiteList
-  middlewares need renaming first.
-
-### Config changes without the white knuckles
-
-SSH Workbench lets you browse and edit configs, tail logs, and restart the service from one place over plain SSH, so a reload never means six terminal tabs.
-
-[Try free for 7 days](https://sshworkbench.com/#install)
+- Upgrading v2 to v3 mostly just works, but HostRegexp placeholder rules, Headers() matchers, and ipWhiteList middlewares need renaming first.
 
 ## Traefik FAQ
 
@@ -415,4 +393,4 @@ Yes, with a TCP router. SSH sends no SNI, so the rule has to be HostSNI(`*`), an
 Two ways, with different failure modes. For local work set --api.insecure=true, publish port 8080, and open [http://localhost:8080/dashboard/](http://localhost:8080/dashboard/) including the trailing slash; without the slash you get a 404. In production leave insecure off and route it like any other app: a router with rule Host(`traefik.example.com`), traefik.http.routers.dash.service=api@internal, and a basicauth middleware. If the page loads but every panel reads "failed to fetch data", the router is serving /dashboard but not /api. Pointing the router at api@internal covers both paths.
 
 ---
-Källa: https://sshworkbench.com/cheatsheets/traefik
+Source: https://sshworkbench.com/cheatsheets/traefik

@@ -2,28 +2,6 @@
 
 git rebase replays your commits on top of another branch, which keeps a feature branch current and its history clean. This sheet covers the commands with short worked examples: interactive rebase, squash and fixup, conflicts, --onto, and how to undo a rebase.
 
-Last updated September 11, 2026
-
-On this page
-
-- [Rebase onto main or master](#rebase-onto-main-or-master)
-- [Rebase After a Pull](#rebase-after-a-pull)
-- [Interactive Rebase](#interactive-rebase)
-- [Rebase Editor](#rebase-editor)
-- [Fixup, Squash & Reword](#fixup-squash-reword)
-- [Squash Commits](#squash-commits)
-- [With Conflicts](#with-conflicts)
-- [Abort, Continue, Skip](#abort-continue-skip)
-- [Ours vs Theirs](#ours-vs-theirs)
-- [Rebase --onto](#rebase---onto)
-- [Edit a Commit](#edit-a-commit)
-- [Exec](#exec)
-- [Rebase vs Merge](#rebase-vs-merge)
-- [Rebase on GitHub](#rebase-on-github)
-- [Cherry-pick vs Rebase](#cherry-pick-vs-rebase)
-- [Undo a Rebase](#undo-a-rebase)
-- [Gotchas](#gotchas)
-
 ## Rebase onto main or master
 
 Run rebase from the branch you want to move. It replays that branch's commits on top of the target.
@@ -44,36 +22,34 @@ Run rebase from the branch you want to move. It replays that branch's commits on
 
 The full update loop, step by step:
 
-```
+```bash
 git switch feature
 git fetch origin
 git rebase origin/main        # if it stops on a conflict: fix, git add, git rebase --continue
 git push --force-with-lease   # the commits were rewritten, so a plain push is rejected
 ```
 
-Copy
-
 ## Rebase After a Pull
 
 When your branch and its remote have both moved, Git stops with "You have divergent branches and need to specify how to reconcile them". Rebasing puts your local commits back on top instead of making a merge commit.
 
-[TABLE]
+| Command | What it does |
+|---|---|
+| `git pull --rebase origin main` | Fetch remote commits and replay local commits on top of them |
+| `git pull --rebase --autostash origin main` | Automatically stash uncommitted changes before rebase and pop after |
+| `git config --global pull.rebase true` | Configure Git to rebase on pull by default for all repositories |
 
-```
+```bash
 # hint: You have divergent branches and need to specify how to reconcile them.
 git config --global pull.rebase true   # set it once
 git pull                               # now rebases instead of merging
 ```
 
-Copy
-
 After someone squash-merges your pull request, the branch's old commits no longer match anything upstream, so a plain rebase replays them as duplicates. Move only the commits you added since then:
 
-```
+```bash
 git rebase --onto origin/main <last-commit-that-got-squashed> feature
 ```
-
-Copy
 
 ## Interactive Rebase
 
@@ -89,7 +65,12 @@ git rebase -i opens a todo list of commits, oldest first. Change the word in fro
 | git rebase --edit-todo | Reopen the todo list mid-rebase |
 | git log --oneline main.. | Preview which commits the todo will contain |
 
-[TABLE]
+| Command | What it does |
+|---|---|
+| `git rebase -i HEAD~3` | Open interactive editor for the last 3 commits |
+| `git rebase -i <commit-hash>` | Rebase all commits since `<commit-hash>` (exclusive) |
+| `git rebase -i origin/main` | Interactively rebase local branch commits on top of `origin/main` |
+| `git rebase -i --root` | Interactively rebase all commits from the initial root commit |
 
 A typical cleanup todo before opening a pull request:
 
@@ -99,8 +80,6 @@ fixup e4f5a6b fix typo
 reword 7c8d9e0 Add rate limiting
 drop f0a1b2c WIP
 ```
-
-Copy
 
 ## Rebase Editor
 
@@ -121,28 +100,35 @@ The todo list opens in your sequence editor, which defaults to core.editor and t
 
 Mark a commit as a fix the moment you make it, and --autosquash files it under its target in the todo for you.
 
-[TABLE]
+| Command Letter | Command | Action |
+|---|---|---|
+| `p` | `pick` | Use commit as is |
+| `r` | `reword` | Use commit, but edit the commit message |
+| `e` | `edit` | Stop to amend commit contents or message |
+| `s` | `squash` | Meld commit into previous commit; combine commit messages |
+| `f` | `fixup` | Meld commit into previous commit; discard this commit's message |
+| `d` | `drop` | Remove / discard this commit completely |
 
-```
+```bash
 # Fix a typo that lives three commits back
 git add src/auth.js
 git commit --fixup=abc1234
 git rebase -i --autosquash main   # the fixup line is already in place; save and quit
 ```
 
-Copy
-
 ## Squash Commits
 
 To squash the last N commits into one, rebase over them interactively and keep only the first pick.
 
-[TABLE]
+| Method | Command | What it does |
+|---|---|---|
+| Interactive Rebase | Mark commits as `fixup` or `squash` | Combines commits while preserving clean history |
+| Soft Reset | `git reset --soft HEAD~N && git commit -m "msg"` | Collapses last `N` commits into one new commit |
+| Merge Squash | `git merge --squash feature-branch` | Combines feature branch changes into a single uncommitted staged change |
 
-```
+```bash
 git rebase -i HEAD~3
 ```
-
-Copy
 
 ```
 pick a1b2c3d Add password reset
@@ -150,16 +136,12 @@ fixup e4f5a6b fix failing test
 fixup 7c8d9e0 review feedback
 ```
 
-Copy
-
 The reset route gets the same result without touching the rebase machinery:
 
-```
+```bash
 git reset --soft HEAD~3
 git commit -m "Add password reset"
 ```
-
-Copy
 
 ## With Conflicts
 
@@ -178,7 +160,7 @@ A rebase replays commits one at a time, so it can stop on any of them. Fix the f
 
 The whole loop:
 
-```
+```bash
 git rebase main
 # CONFLICT (content): Merge conflict in src/app.js
 vim src/app.js                # remove the <<<<<<< ======= >>>>>>> markers
@@ -186,13 +168,16 @@ git add src/app.js
 git rebase --continue         # repeat until "Successfully rebased"
 ```
 
-Copy
-
 ## Abort, Continue, Skip
 
 --continue after staging fixes, --skip when the commit is already upstream, --abort when the whole thing went sideways.
 
-[TABLE]
+| Command | When to use |
+|---|---|
+| `git rebase --continue` | Run after resolving merge conflicts and staging fixed files with `git add` |
+| `git rebase --abort` | Stop rebase immediately and restore branch to state before rebase started |
+| `git rebase --skip` | Skip the current conflicted commit entirely (drops the commit) |
+| `git rebase --edit-todo` | Reopen and edit the remaining rebase instruction list |
 
 If --continue says there is nothing to commit, the resolution made the commit empty, usually because the change already exists upstream. That is what --skip is for.
 
@@ -213,7 +198,7 @@ Editors rename the same two sides. In VS Code's conflict view during a rebase, "
 
 After a --ours/--theirs checkout, the file still needs git add and git rebase --continue.
 
-```
+```bash
 # Keep your version of the lock file for every conflict in this rebase
 git rebase -X theirs main
 
@@ -223,11 +208,9 @@ git add package-lock.json
 git rebase --continue
 ```
 
-Copy
-
 ## Rebase --onto
 
---onto moves a range of commits to a new base: git rebase --onto \<new-base\> \<old-base\> \<branch\>. Read it as "take the commits after old-base up to branch, and replay them on new-base".
+--onto moves a range of commits to a new base: git rebase --onto <new-base> <old-base> <branch>. Read it as "take the commits after old-base up to branch, and replay them on new-base".
 
 | Command | What it does |
 |----|----|
@@ -236,21 +219,24 @@ Copy
 | git rebase --onto origin/main origin/develop feature | Move a branch started from the wrong base |
 | git rebase --onto HEAD~4 HEAD~2 | Drop the two commits between HEAD~~4 and HEAD~~2 |
 
-```
+```bash
 # You branched featureB off featureA, and featureA just merged.
 # Replay only featureB's own commits onto main:
 git rebase --onto main featureA featureB
 ```
 
-Copy
-
 ## Edit a Commit
 
 Mark a commit edit in the todo and the rebase stops right after applying it, with the commit as HEAD.
 
-[TABLE]
+| Step | Command | Action |
+|---|---|---|
+| 1. Mark in rebase | Change `pick` to `edit` | Tells rebase to pause after applying this commit |
+| 2. Modify files | Edit files, then `git add <files>` | Prepare changes |
+| 3. Amend commit | `git commit --amend` | Update the commit with modifications |
+| 4. Resume rebase | `git rebase --continue` | Proceed with remaining commits |
 
-```
+```bash
 # Change a file inside an older commit
 git rebase -i abc1234^        # change "pick abc1234" to "edit abc1234"
 vim src/config.js
@@ -258,8 +244,6 @@ git add src/config.js
 git commit --amend --no-edit
 git rebase --continue
 ```
-
-Copy
 
 To split it instead: git reset HEAD^ at the stop, then stage and commit the pieces separately before --continue.
 
@@ -273,19 +257,22 @@ exec runs a command after a commit is applied and stops the rebase if it fails, 
 | x npm test | The same as a hand-placed todo line |
 | git rebase -i -x "make" HEAD~10 | Combine a test run with normal todo editing |
 
-```
+```bash
 # Find the commit that broke the tests while rebasing a branch
 git rebase -x "npm test" main
 # stops at the first failing commit: fix it, git commit --amend, git rebase --continue
 ```
 
-Copy
-
 ## Rebase vs Merge
 
 Both integrate one branch into another; they leave different history behind.
 
-[TABLE]
+| Feature | `git rebase` | `git merge` |
+|---|---|---|
+| Commit History | Linear, clean, no extra merge commits | Preserves branching topology and true timeline |
+| Traceability | Rewrites commit hashes | Leaves original commit hashes intact |
+| Conflict Resolution | Resolved per replayed commit | Resolved once in the merge commit |
+| Rule of Thumb | Ideal for local feature branches before sharing | Ideal for shared public branches (`main`, `develop`) |
 
 Rule of thumb: rebase your own feature branch to keep it current, merge to land finished work into a branch other people use. The [git cheat sheet](https://sshworkbench.com/cheatsheets/git) covers the merge side in full.
 
@@ -301,14 +288,12 @@ GitHub's "Rebase and merge" button replays a pull request's commits onto the bas
 | gh pr checkout 123 | Check out someone else's PR branch to rebase it |
 | git rebase -i origin/main | Tidy the PR's commits before asking for review |
 
-```
+```bash
 # "This branch is out-of-date with the base branch" on a PR with conflicts
 git fetch origin
 git rebase origin/main        # fix, git add, git rebase --continue
 git push --force-with-lease   # the PR updates in place, review comments stay
 ```
-
-Copy
 
 Force-pushing a rebased branch keeps the pull request and its conversation; only the diffs of individual commits become unreachable, so old review comments may show as outdated.
 
@@ -324,7 +309,7 @@ cherry-pick copies commits and leaves the originals alone, so the change exists 
 | git cherry-pick --continue | Same conflict loop as a rebase |
 | git rebase --onto main old-base feature | Move a whole range instead of copying it commit by commit |
 
-```
+```bash
 # One fix belongs on the release branch too: copy it
 git switch release-2.1
 git cherry-pick abc1234
@@ -332,8 +317,6 @@ git cherry-pick abc1234
 # The whole branch started from the wrong base: move it
 git rebase --onto main old-base feature
 ```
-
-Copy
 
 ## Undo a Rebase
 
@@ -347,7 +330,7 @@ The old commits are not gone after a rebase; the reflog still points at them for
 | git reset --hard ORIG_HEAD | Jump straight back, if nothing has overwritten ORIG_HEAD since |
 | git reflog show feature | The same history, scoped to one branch |
 
-```
+```bash
 git reflog
 # a1b2c3d HEAD@{0}: rebase (finish): returning to refs/heads/feature
 # ...
@@ -355,47 +338,15 @@ git reflog
 git reset --hard HEAD@{7}
 ```
 
-Copy
-
 Pick the entry just below the first rebase (start) line: that was the branch tip before anything was rewritten.
 
 ## Gotchas
 
 - Never rebase commits other people have already pulled. Rewriting a shared branch forces everyone else into a painful recovery; merge on shared branches, rebase on your own.
-- After any rebase, a plain
-  git push
-  is rejected. Use
-  git push --force-with-lease
-  , never bare
-  --force
-  : with-lease fails safely if a teammate pushed in the meantime.
-- Ours and theirs swap meaning during a rebase.
-  --ours
-  is the branch you are rebasing onto,
-  --theirs
-  is your own commit.
-  -X ours
-  and
-  -X theirs
-  swap the same way.
-- Do not
-  git commit
-  after fixing a conflict;
-  git add
-  then
-  git rebase --continue
-  is the whole move. Committing by hand mid-rebase leads to duplicated or empty commits.
-- Rebase refuses to start over uncommitted changes. Commit them, stash them, or pass
-  --autostash
-  (or set
-  rebase.autostash true
-  once).
-
-### Your servers deserve the same care as your repo
-
-SSH Workbench turns every server into a dashboard over plain SSH: deploys, services, logs, files, and cron, with a real terminal when you want one.
-
-[Try free for 7 days](https://sshworkbench.com/#install)
+- After any rebase, a plain git push is rejected. Use git push --force-with-lease, never bare --force: with-lease fails safely if a teammate pushed in the meantime.
+- Ours and theirs swap meaning during a rebase. --ours is the branch you are rebasing onto, --theirs is your own commit. -X ours and -X theirs swap the same way.
+- Do not git commit after fixing a conflict; git add then git rebase --continue is the whole move. Committing by hand mid-rebase leads to duplicated or empty commits.
+- Rebase refuses to start over uncommitted changes. Commit them, stash them, or pass --autostash (or set rebase.autostash true once).
 
 ## git rebase FAQ
 
@@ -420,4 +371,4 @@ Committed work is not overwritten. Rebase refuses to start with a dirty tree, so
 Theirs is your own commit, which catches almost everyone out. Rebase checks out the branch you are rebasing onto and replays your commits against it, so from Git's point of view that base branch is ours and each commit of yours arriving on top is theirs. Editors make it worse by using different words: in VS Code, "Current Change" is the base branch and "Incoming Change" is your commit. To keep your own version of every file conflicted at this stop, run git checkout --theirs -- . then git add -A and git rebase --continue; to take that side for the whole rebase, restart it as git rebase -X theirs main. Save that for lock files and generated output, not source.
 
 ---
-Källa: https://sshworkbench.com/cheatsheets/git-rebase
+Source: https://sshworkbench.com/cheatsheets/git-rebase

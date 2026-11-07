@@ -2,41 +2,38 @@
 
 journalctl reads the systemd journal, where every service on a modern Linux box writes its logs. This sheet covers the journalctl commands for filtering by service, time and priority, following live output, exporting to a file, and keeping the journal's disk usage in check.
 
-Last updated September 11, 2026
-
-On this page
-
-- [Service Logs](#service-logs)
-- [Follow and Tail](#follow-and-tail)
-- [Time Ranges](#time-ranges)
-- [Boots](#boots)
-- [Priority](#priority)
-- [Search and Filter](#search-and-filter)
-- [Auth and Logins](#auth-and-logins)
-- [User Services](#user-services)
-- [Output Formats](#output-formats)
-- [Pager and Wrapping](#pager-and-wrapping)
-- [Export to a File](#export-to-a-file)
-- [Disk Usage and Vacuum](#disk-usage-and-vacuum)
-- [Gotchas](#gotchas)
-
 Any user can read their own logs; reading the full system journal needs sudo or membership in the systemd-journal or adm group. Filters combine, so journalctl -u nginx -p err --since today -f is one valid command.
 
 ## Service Logs
 
-[TABLE]
+| Command | What it does |
+|---|---|
+| `journalctl -u nginx` | View all journal logs for `nginx.service` |
+| `journalctl -u nginx -u php-fpm` | Interleave logs from multiple services chronologically |
+| `journalctl _PID=1234` | Filter logs by process ID |
 
 -u shows nothing for a misspelled unit name rather than erroring; confirm the name with systemctl list-units --type=service from the [systemctl cheat sheet](https://sshworkbench.com/cheatsheets/systemctl).
 
 ## Follow and Tail
 
-[TABLE]
+| Command | What it does |
+|---|---|
+| `journalctl -f` | Tail system logs in real time (`Ctrl+C` to exit) |
+| `journalctl -u nginx -f` | Tail logs of specific service |
+| `journalctl -n 100` | Show only the last 100 lines |
+| `journalctl -u nginx -n 50 -f` | Show last 50 lines and continue following new entries |
 
 ## Time Ranges
 
 --since and --until take human phrases and absolute stamps, and stack with every other filter.
 
-[TABLE]
+| Command | What it does |
+|---|---|
+| `journalctl --since "1 hour ago"` | Show logs from the past hour |
+| `journalctl --since "today"` | Show logs generated since 00:00:00 today |
+| `journalctl --since "2026-11-01 12:00" --until "2026-11-01 14:00"` | Filter between exact timestamps |
+| `journalctl -b` | Show logs from current system boot |
+| `journalctl -b -1` | Show logs from previous system boot |
 
 ## Boots
 
@@ -60,13 +57,20 @@ journalctl -b -1 -p err -o short-iso
 journalctl -b -1 -k -g "oom|panic|error"
 ```
 
-Copy
-
 If --list-boots shows only one boot, the journal is volatile and pre-reboot logs are gone; see the persistence setup under Disk Usage below.
 
 ## Priority
 
-[TABLE]
+| Priority Level | Numeric | Example Flag | Description |
+|---|---|---|---|
+| `emerg` | 0 | `-p 0` | System is unusable |
+| `alert` | 1 | `-p 1` | Action must be taken immediately |
+| `crit` | 2 | `-p 2` | Critical conditions |
+| `err` | 3 | `-p err` | Error conditions |
+| `warning` | 4 | `-p warning` | Warning conditions |
+| `notice` | 5 | `-p notice` | Normal but significant conditions |
+| `info` | 6 | `-p info` | Informational messages |
+| `debug` | 7 | `-p debug` | Debug-level messages |
 
 | Level | Name    | Typical meaning      |
 |-------|---------|----------------------|
@@ -83,7 +87,12 @@ If --list-boots shows only one boot, the journal is volatile and pre-reboot logs
 
 ## Search and Filter
 
-[TABLE]
+| Command | What it does |
+|---|---|
+| `journalctl -g "pattern"` | Search log messages matching regular expression |
+| `journalctl _UID=1000` | Filter logs by system user ID |
+| `journalctl /usr/bin/sudo` | Filter logs by executable path |
+| `journalctl -k` | Display kernel messages only (`dmesg` equivalent) |
 
 Field filters like \_PID= combine with -u, -b and time flags like any other filter. journalctl -o verbose -n 5 shows every field a journal entry carries, which is how you discover what to filter on.
 
@@ -91,7 +100,11 @@ Field filters like \_PID= combine with -u, -b and time flags like any other filt
 
 The SSH unit is ssh on Debian and Ubuntu, sshd on RHEL and its relatives.
 
-[TABLE]
+| Command | What it does |
+|---|---|
+| `journalctl -u ssh` | View SSH server authentication and session logs (Debian/Ubuntu) |
+| `journalctl -u sshd` | View SSH server logs on RHEL/Fedora/Arch |
+| `journalctl _COMM=sshd` | Filter specifically by sshd command name |
 
 A busy public host logs thousands of failed SSH attempts a day, which is noise rather than a break-in. Look for an Accepted line from an IP you do not recognise.
 
@@ -112,7 +125,13 @@ sudo journalctl --user shows root's user journal, not yours, which is a common f
 
 ## Output Formats
 
-[TABLE]
+| Format Flag | Output Description |
+|---|---|
+| `-o short` | Default format (timestamp, hostname, unit, message) |
+| `-o short-iso` | ISO-8601 timestamps (`YYYY-MM-DDTHH:MM:SS`) |
+| `-o json` | One JSON object per log entry |
+| `-o json-pretty` | Pretty-printed multiline JSON |
+| `-o cat` | Message text only (strips timestamps and hostnames) |
 
 Cursors give a script an exact resume point, so a cron job can process only what arrived since its last run without overlaps or gaps.
 
@@ -120,7 +139,11 @@ Cursors give a script an exact resume point, so a cron job can process only what
 
 Output goes through less, started with SYSTEMD_LESS=FRSXMK. The S in there chops long lines at the terminal width, which is why lines look cut off.
 
-[TABLE]
+| Flag | Description |
+|---|---|
+| `--no-pager` | Pipe output directly to terminal without invoking `less` |
+| `-e` | Jump immediately to end of log in pager |
+| `--no-tail` | Show all lines regardless of buffer limits |
 
 Set SYSTEMD_PAGER=cat in your shell profile to skip the pager permanently. -f never uses the pager, so Ctrl+C is what ends a follow.
 
@@ -128,7 +151,12 @@ Set SYSTEMD_PAGER=cat in your shell profile to skip the pager permanently. -f ne
 
 The pager is skipped automatically when output is not a terminal, so a plain redirect needs no --no-pager.
 
-[TABLE]
+| Command | What it does |
+|---|---|
+| `journalctl -u nginx > nginx.log` | Dump service logs to text file |
+| `journalctl --disk-usage` | Check current disk space used by journal archives |
+| `sudo journalctl --vacuum-size=500M` | Reduce journal archive storage to maximum of 500 MB |
+| `sudo journalctl --vacuum-time=7d` | Delete journal files older than 7 days |
 
 ## Disk Usage and Vacuum
 
@@ -149,75 +177,30 @@ Storage=persistent
 SystemMaxUse=500M
 ```
 
-Copy
-
-```
+```bash
 sudo mkdir -p /var/log/journal
 sudo systemctl restart systemd-journald
 ```
-
-Copy
 
 The edge case that bites: the default Storage=auto persists only if /var/log/journal already exists. Debian and Ubuntu ship the directory, so their logs survive reboots; RHEL and CentOS generally do not, so every boot starts the journal empty and journalctl -b -1 has nothing to show until you create it.
 
 ## Gotchas
 
-- Empty output from
-  journalctl -u name
-  usually means a misspelled or different unit name, not missing logs.
-  systemctl list-units --type=service
-  settles it.
-- journalctl -b -1
-  erroring with no persistent journal means the logs you want are already gone. Set up persistence today, before the crash you will want to debug.
-- -p err
-  shows
-  err
-  and everything worse, and it filters on the priority the service declared. Apps that write plain text to stdout log everything at
-  info
-  , so their errors do not surface under
-  -p err
-  ; use
-  -g
-  for those.
-- Timestamps print in the machine's local timezone. On servers set to UTC that is what you expect; on anything else,
-  --utc
-  avoids an hour of confusion during incident timelines.
-- -g
-  needs systemd 239 or newer. Older hosts (CentOS 7 and friends) pipe to
-  grep
-  instead.
-- There is no exclude flag. journalctl matches are positive only, so to drop one noisy unit you either name the units you do want with repeated
-  -u
-  , or pipe through
-  grep -v
-  .
-- Searching with
-  -g
-  reads every entry, while
-  -u
-  and other field matches use the journal index. Narrow by boot or time first and the same search finishes far quicker.
-- Without
-  sudo
-  you see your own logs only, and journalctl says so in a hint at the top that is easy to scroll past. Add yourself to
-  systemd-journal
-  for read access without sudo.
-- The journal and a service's own log files are separate worlds. nginx access logs live in
-  /var/log/nginx/
-  , not the journal; the journal has stdout, stderr and what systemd itself says about the unit. Unit state is the same split:
-  systemctl --failed
-  lists what is broken, journalctl only shows what it logged. The [systemctl cheat sheet](https://sshworkbench.com/cheatsheets/systemctl) covers the service side.
-
-### Services without the systemctl dance
-
-SSH Workbench lists every systemd service on a server with start, stop, restart, enable, and live logs as buttons, over plain SSH.
-
-[Try free for 7 days](https://sshworkbench.com/#install)
+- Empty output from journalctl -u name usually means a misspelled or different unit name, not missing logs. systemctl list-units --type=service settles it.
+- journalctl -b -1 erroring with no persistent journal means the logs you want are already gone. Set up persistence today, before the crash you will want to debug.
+- -p err shows err and everything worse, and it filters on the priority the service declared. Apps that write plain text to stdout log everything at info, so their errors do not surface under -p err; use -g for those.
+- Timestamps print in the machine's local timezone. On servers set to UTC that is what you expect; on anything else, --utc avoids an hour of confusion during incident timelines.
+- -g needs systemd 239 or newer. Older hosts (CentOS 7 and friends) pipe to grep instead.
+- There is no exclude flag. journalctl matches are positive only, so to drop one noisy unit you either name the units you do want with repeated -u, or pipe through grep -v.
+- Searching with -g reads every entry, while -u and other field matches use the journal index. Narrow by boot or time first and the same search finishes far quicker.
+- Without sudo you see your own logs only, and journalctl says so in a hint at the top that is easy to scroll past. Add yourself to systemd-journal for read access without sudo.
+- The journal and a service's own log files are separate worlds. nginx access logs live in /var/log/nginx/, not the journal; the journal has stdout, stderr and what systemd itself says about the unit. Unit state is the same split: systemctl --failed lists what is broken, journalctl only shows what it logged. The [systemctl cheat sheet](https://sshworkbench.com/cheatsheets/systemctl) covers the service side.
 
 ## journalctl FAQ
 
 ### Where does journalctl store its logs?
 
-In binary files under /var/log/journal/\<machine-id\>/ when the journal is persistent, and in /run/log/journal/ when it is not, which is memory and disappears at every reboot. The files are not text, so cat, tail and grep on them give you nothing useful; journalctl is the reader. Each user's services get their own user-1000.journal alongside system.journal in the same directory. You can also point journalctl at files it did not open itself: journalctl --file /var/log/journal/\*/system.journal reads specific files, and journalctl -D /mnt/old/var/log/journal reads a whole journal directory from a mounted disk or a rescue boot, which is how you read the logs of a machine that no longer starts.
+In binary files under /var/log/journal/<machine-id>/ when the journal is persistent, and in /run/log/journal/ when it is not, which is memory and disappears at every reboot. The files are not text, so cat, tail and grep on them give you nothing useful; journalctl is the reader. Each user's services get their own user-1000.journal alongside system.journal in the same directory. You can also point journalctl at files it did not open itself: journalctl --file /var/log/journal/*/system.journal reads specific files, and journalctl -D /mnt/old/var/log/journal reads a whole journal directory from a mounted disk or a rescue boot, which is how you read the logs of a machine that no longer starts.
 
 ### How do I exit journalctl?
 
@@ -236,4 +219,4 @@ Only for other people's logs. Any user can read their own messages and their own
 Vacuum it, do not delete it. Run sudo journalctl --rotate to archive the file currently being written, then sudo journalctl --vacuum-size=500M or sudo journalctl --vacuum-time=2weeks to remove the oldest archived files until the limit is met; it prints every file it deletes. Skipping the rotate step is why a vacuum often frees far less than expected, because the active file is never touched. Sizes take K, M and G suffixes. There is no way to clear the lines of a single service. To stop the journal growing back, set SystemMaxUse=500M in /etc/systemd/journald.conf; the default is 10% of the filesystem, capped at 4G.
 
 ---
-Källa: https://sshworkbench.com/cheatsheets/journalctl
+Source: https://sshworkbench.com/cheatsheets/journalctl

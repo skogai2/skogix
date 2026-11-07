@@ -2,28 +2,6 @@
 
 iptables is the classic Linux firewall tool, still everywhere even though nftables is its successor. This sheet covers listing and adding rules, opening and blocking ports, rule order, NAT and port forwarding, ipset, IPv6, Docker, making rules survive a reboot, and the DROP policy that locks you out of SSH.
 
-Last updated September 11, 2026
-
-On this page
-
-- [Listing Rules](#listing-rules)
-- [SSH Lockout](#ssh-lockout)
-- [Allowing Traffic](#allowing-traffic)
-- [Blocking Traffic](#blocking-traffic)
-- [Adding and Deleting Rules](#adding-and-deleting-rules)
-- [Rule Order](#rule-order)
-- [Tables and Chains](#tables-and-chains)
-- [Flushing Rules](#flushing-rules)
-- [NAT and Port Forwarding](#nat-and-port-forwarding)
-- [Saving Rules](#saving-rules)
-- [IP Sets](#ip-sets)
-- [Logging and Rate Limiting](#logging-and-rate-limiting)
-- [IPv6](#ipv6)
-- [Docker](#docker)
-- [Common Errors](#common-errors)
-- [nftables and Front Ends](#nftables-and-front-ends)
-- [Gotchas](#gotchas)
-
 ## Listing Rules
 
 Everything needs root. -n skips DNS lookups, -v adds packet counters, --line-numbers gives you the numbers used for deleting.
@@ -44,7 +22,7 @@ Everything needs root. -n skips DNS lookups, -v adds packet counters, --line-num
 
 This is the one that costs you the server. iptables -P INPUT DROP with no rule allowing port 22 kills the session you are typing in, not just the next login, because the policy applies to the packets carrying your keystrokes. The same thing happens when you flush a ruleset while the policy is already DROP, since -F removes the SSH allow rule and leaves the DROP in place. Add the allow rules first, set the policy last.
 
-```
+```bash
 sudo iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
 sudo iptables -A INPUT -i lo -j ACCEPT
 sudo iptables -A INPUT -p tcp --dport 22 -j ACCEPT
@@ -53,9 +31,11 @@ sudo iptables -L INPUT -n -v --line-numbers   # confirm the SSH rule is live
 sudo iptables -P INPUT DROP
 ```
 
-Copy
-
-[TABLE]
+| Step | Safe Command Sequence | Purpose |
+|---|---|---|
+| 1. Allow Port 22 | `sudo iptables -A INPUT -p tcp --dport 22 -j ACCEPT` | Ensure current and future SSH sessions are accepted |
+| 2. Allow Established | `sudo iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT` | Keep active terminal session alive |
+| 3. Set Default Policy | `sudo iptables -P INPUT DROP` | Drop unmatched traffic only after allowing SSH |
 
 Set up the deadman switch before the first DROP, not after, and cancel it once a new login works. If sshd listens on a non-standard port, open that port instead and check it from outside with the [SSH port checker](https://sshworkbench.com/tools/ssh-port-checker). A DROP policy shows up as a timeout ([Network error: Connection timed out](https://sshworkbench.com/fix/putty-network-error-connection-timed-out)), a REJECT rule as [connection refused](https://sshworkbench.com/fix/ssh-connection-refused). The [nftables](https://sshworkbench.com/cheatsheets/nftables) and [UFW](https://sshworkbench.com/cheatsheets/ufw) sheets have the same trap in their own syntax, and the [firewall rule generator](https://sshworkbench.com/tools/firewall-rule-generator) writes a ruleset that already has the SSH rule in it.
 
@@ -63,19 +43,23 @@ Set up the deadman switch before the first DROP, not after, and cancel it once a
 
 Order matters: rules match top down, first match wins. Allow SSH before anything drops.
 
-[TABLE]
+| Command | What it does |
+|---|---|
+| `sudo iptables -A INPUT -p tcp --dport 22 -j ACCEPT` | Allow incoming SSH traffic on port 22 |
+| `sudo iptables -A INPUT -p tcp -m multiport --dports 80,443 -j ACCEPT` | Allow HTTP and HTTPS traffic in a single rule |
+| `sudo iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT` | Allow return traffic for established connections |
+| `sudo iptables -A INPUT -i lo -j ACCEPT` | Allow all local loopback interface traffic |
+| `sudo iptables -A INPUT -s 192.168.1.100 -j ACCEPT` | Whitelist specific source IP address |
 
 A minimal safe INPUT policy, in the right order:
 
-```
+```bash
 sudo iptables -A INPUT -i lo -j ACCEPT
 sudo iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
 sudo iptables -A INPUT -p tcp --dport 22 -j ACCEPT
 sudo iptables -A INPUT -p tcp -m multiport --dports 80,443 -j ACCEPT
 sudo iptables -P INPUT DROP
 ```
-
-Copy
 
 The [firewall rule generator](https://sshworkbench.com/tools/firewall-rule-generator) builds rule sets like this from a checklist.
 
@@ -115,7 +99,12 @@ Rule numbers shift after every delete. Deleting several by number goes highest f
 
 Inside a chain the first matching rule wins and evaluation stops, so a rule you append below an existing ACCEPT or DROP never runs. Chains run in a fixed order too, which is why NAT happens before your filter rules ever see the packet.
 
-[TABLE]
+| Command | What it does |
+|---|---|
+| `sudo iptables -L --line-numbers` | List all active rules with sequential line numbers |
+| `sudo iptables -I INPUT 1 -p tcp --dport 22 -j ACCEPT` | Insert rule at line 1 (evaluated first) |
+| `sudo iptables -D INPUT 3` | Delete rule number 3 from the INPUT chain |
+| `sudo iptables -D INPUT -p tcp --dport 80 -j ACCEPT` | Delete matching rule by exact specification |
 
 Two consequences worth remembering: a DNAT rewrite in PREROUTING happens first, so a FORWARD rule has to match the internal address, not the public one; and a packet accepted in INPUT never reaches FORWARD, which is why Docker's published ports are invisible to your INPUT rules.
 
@@ -123,13 +112,18 @@ Two consequences worth remembering: a DNAT rewrite in PREROUTING happens first, 
 
 A rule lives in a chain, a chain lives in a table. -t filter is the default, which is why NAT rules seem to disappear until you ask for their table.
 
-[TABLE]
+| Table | Built-in Chains | Primary Purpose |
+|---|---|---|
+| `filter` (default) | `INPUT`, `FORWARD`, `OUTPUT` | Packet filtering (accept, drop, reject) |
+| `nat` | `PREROUTING`, `POSTROUTING`, `OUTPUT` | Network Address Translation (port forwarding, masquerading) |
+| `mangle` | `PREROUTING`, `INPUT`, `FORWARD`, `OUTPUT`, `POSTROUTING` | Packet alteration (TTL, TOS, marks) |
+| `raw` | `PREROUTING`, `OUTPUT` | Bypassing connection tracking |
 
 ## Flushing Rules
 
 -F deletes all rules but does not touch chain policies. If the policy is DROP, flushing locks you out of SSH instantly. Safe order:
 
-```
+```bash
 # 1. Open the policies first, so an empty ruleset allows everything:
 sudo iptables -P INPUT ACCEPT
 sudo iptables -P FORWARD ACCEPT
@@ -141,20 +135,16 @@ sudo iptables -t nat -F   # nat and mangle have their own rules
 sudo iptables -t mangle -F
 ```
 
-Copy
-
 Keep the current SSH session open and test a fresh login before closing it. When rebuilding, the first rule you add back is the SSH allow, and the deadman switch in SSH Lockout above costs nothing.
 
 ## NAT and Port Forwarding
 
 NAT rules live in the nat table and need forwarding enabled in the kernel first:
 
-```
+```bash
 sudo sysctl -w net.ipv4.ip_forward=1
 # permanent: echo 'net.ipv4.ip_forward=1' | sudo tee /etc/sysctl.d/99-forward.conf
 ```
-
-Copy
 
 | Command | What it does |
 |----|----|
@@ -167,13 +157,11 @@ Copy
 
 Forward port 80 arriving on this box to an internal server:
 
-```
+```bash
 sudo iptables -t nat -A PREROUTING -p tcp --dport 80 -j DNAT --to-destination 10.0.0.5:80
 sudo iptables -A FORWARD -p tcp -d 10.0.0.5 --dport 80 -m conntrack --ctstate NEW,ESTABLISHED,RELATED -j ACCEPT
 sudo iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
 ```
-
-Copy
 
 A forward that does nothing is almost always ip_forward left at 0, a FORWARD chain with no matching ACCEPT, or a test run from the box itself: locally generated traffic never passes through PREROUTING, so test from another host or with the [SSH port checker](https://sshworkbench.com/tools/ssh-port-checker).
 
@@ -183,28 +171,26 @@ Rules live in kernel memory and are gone after a reboot unless something restore
 
 | Command | What it does |
 |----|----|
-| iptables-save \> /etc/iptables/rules.v4 | Dump current rules to a file |
-| iptables-restore \< /etc/iptables/rules.v4 | Load them back, replacing everything |
-| iptables-restore -n \< extra.v4 | Merge a file into the running rules instead of replacing them |
-| iptables-save -c \> rules.v4 | Keep the packet counters in the dump |
+| iptables-save > /etc/iptables/rules.v4 | Dump current rules to a file |
+| iptables-restore < /etc/iptables/rules.v4 | Load them back, replacing everything |
+| iptables-restore -n < extra.v4 | Merge a file into the running rules instead of replacing them |
+| iptables-save -c > rules.v4 | Keep the packet counters in the dump |
 | apt install iptables-persistent | Debian/Ubuntu: restores rules at boot |
 | netfilter-persistent save | Save current rules for that boot restore |
 | service iptables save | RHEL/CentOS with the iptables-services package |
-| ip6tables-save \> /etc/iptables/rules.v6 | IPv6 rules are saved separately |
+| ip6tables-save > /etc/iptables/rules.v6 | IPv6 rules are saved separately |
 | iptables-apply rules.v4 | Apply with an automatic rollback if you do not confirm (lockout insurance) |
 
 ## IP Sets
 
 ipset keeps thousands of addresses in one kernel hash, so a blocklist costs you one rule instead of one rule per address, and matching stays fast as it grows.
 
-```
+```bash
 sudo apt install ipset
 sudo ipset create blocklist hash:net
 sudo ipset add blocklist 198.51.100.0/24
 sudo iptables -I INPUT -m set --match-set blocklist src -j DROP
 ```
-
-Copy
 
 | Command | What it does |
 |----|----|
@@ -214,15 +200,19 @@ Copy
 | ipset test blocklist 203.0.113.9 | Ask whether an address is in the set |
 | ipset create allowlist hash:ip | A set of single addresses rather than networks |
 | iptables -I INPUT -m set --match-set allowlist src -j ACCEPT | Allow only what is in a set |
-| ipset save \> /etc/ipset.conf | Sets are saved separately from iptables rules |
-| ipset restore \< /etc/ipset.conf | Load them back; do this before the iptables rules |
+| ipset save > /etc/ipset.conf | Sets are saved separately from iptables rules |
+| ipset restore < /etc/ipset.conf | Load them back; do this before the iptables rules |
 | ipset destroy blocklist | Delete a set; the rules referencing it have to go first |
 
 Country blocking works the same way: build a hash:net set from an aggregated zone file and point one DROP rule at it. The xt_geoip module from xtables-addons does it without a set, but the database needs updating by hand and it is a per-packet lookup. nftables has sets built into the ruleset, with no second tool to install or save; see the [nftables cheat sheet](https://sshworkbench.com/cheatsheets/nftables).
 
 ## Logging and Rate Limiting
 
-[TABLE]
+| Command | What it does |
+|---|---|
+| `sudo iptables -A INPUT -p tcp --dport 22 -m limit --limit 3/min -j LOG --log-prefix "SSH-ATTEMPT: "` | Rate limit logging of SSH attempts |
+| `sudo iptables -A INPUT -p tcp --dport 22 -m state --state NEW -m recent --set` | Register IP in connection tracking table |
+| `sudo iptables -A INPUT -p tcp --dport 22 -m state --state NEW -m recent --update --seconds 60 --hitcount 4 -j DROP` | Drop IP after 4 attempts within 60 seconds |
 
 Logged packets land in the kernel log: journalctl -k \| grep IPT-DROP or dmesg. fail2ban inserts its bans into its own chain at the top of INPUT, so its rules are why a chain sometimes has entries you did not add.
 
@@ -230,7 +220,11 @@ Logged packets land in the kernel log: journalctl -k \| grep IPT-DROP or dmesg. 
 
 ip6tables is a second, independent firewall with the same syntax. Locking down IPv4 on a service that also listens on IPv6 closes half the door.
 
-[TABLE]
+| IPv4 Command | IPv6 Equivalent (`ip6tables`) |
+|---|---|
+| `iptables -L -n -v` | `ip6tables -L -n -v` |
+| `iptables -A INPUT -p tcp --dport 22 -j ACCEPT` | `ip6tables -A INPUT -p tcp --dport 22 -j ACCEPT` |
+| `iptables -P INPUT DROP` | `ip6tables -P INPUT DROP` |
 
 nftables' inet family covers both stacks in one rule, which is the main day-to-day reason to move.
 
@@ -251,51 +245,33 @@ Setting {"iptables": false} in /etc/docker/daemon.json stops the bypass but brea
 
 ## Common Errors
 
-[TABLE]
+| Error / Problem | Cause | Solution |
+|---|---|---|
+| Locked out of SSH | Applied default DROP policy before allowing port 22 | Always accept port 22 and established connections first |
+| Rules lost on reboot | iptables rules live in memory only | Install `iptables-persistent` or run `iptables-save > /etc/iptables.rules` |
+| Loopback traffic blocked | Forgot `lo` interface rule | Add `iptables -A INPUT -i lo -j ACCEPT` |
 
 ## nftables and Front Ends
 
 nftables is the successor; new setups should use it or a front end rather than raw iptables.
 
-[TABLE]
+| Tool | Relationship to iptables |
+|---|---|
+| `iptables-nft` | Translation layer routing iptables commands to modern nftables kernel backend |
+| `iptables-translate` | Utility to convert raw iptables command strings into nftables syntax |
+| `UFW` / `firewalld` | High-level user-friendly front ends managing underlying packet rules |
 
 Convert whole rule sets with the [iptables to nftables converter](https://sshworkbench.com/tools/iptables-to-nftables), or write one rule for iptables, nft, UFW, and firewalld at once with the [firewall rule generator](https://sshworkbench.com/tools/firewall-rule-generator). The [nftables cheat sheet](https://sshworkbench.com/cheatsheets/nftables) has the native syntax side by side with these commands. If all you want is ports opened and closed on one server, [UFW](https://sshworkbench.com/cheatsheets/ufw) is the simpler front end and manages this layer for you.
 
 ## Gotchas
 
-- Mixing tools bites: ufw, firewalld, and Docker all write their own iptables or nftables rules, so a rule you add by hand can be shadowed by theirs or wiped on their reload.
-  nft list ruleset
-  shows the whole truth; pick one manager per box.
+- Mixing tools bites: ufw, firewalld, and Docker all write their own iptables or nftables rules, so a rule you add by hand can be shadowed by theirs or wiped on their reload. nft list ruleset shows the whole truth; pick one manager per box.
 - Rules are gone after a reboot unless you set up persistence. The classic failure: firewall works for months, a reboot silently drops it.
-- iptables -L
-  without
-  -t nat
-  hides all NAT rules, and without
-  -n
-  it stalls on DNS lookups.
-- iptables-legacy and iptables-nft keep separate rule sets. If rules seem to be missing, the other binary may own them: check
-  iptables -V
-  and
-  iptables-legacy -L -n
-  .
+- iptables -L without -t nat hides all NAT rules, and without -n it stalls on DNS lookups.
+- iptables-legacy and iptables-nft keep separate rule sets. If rules seem to be missing, the other binary may own them: check iptables -V and iptables-legacy -L -n.
 - Docker publishes container ports by writing its own FORWARD and DOCKER chain rules, bypassing your INPUT rules entirely. A "closed" port can still be reachable through Docker.
-- IPv6 is a separate firewall (
-  ip6tables
-  or the nft
-  inet
-  family). Locking down IPv4 while the service also listens on IPv6 locks down half the door.
-- ipset
-  contents are saved by
-  ipset save
-  , not by
-  iptables-save
-  . Restoring rules without restoring the sets leaves you with rules that match nothing, or that refuse to load at all.
-
-### Firewall rules you can see
-
-SSH Workbench shows the firewall on every server as a table you can edit, and warns before a rule locks you out of SSH.
-
-[Try free for 7 days](https://sshworkbench.com/#install)
+- IPv6 is a separate firewall ( ip6tables or the nft inet family). Locking down IPv4 while the service also listens on IPv6 locks down half the door.
+- ipset contents are saved by ipset save, not by iptables-save. Restoring rules without restoring the sets leaves you with rules that match nothing, or that refuse to load at all.
 
 ## iptables FAQ
 
@@ -305,7 +281,7 @@ No. The running ruleset lives in kernel memory and is empty again at the next bo
 
 ### Where are iptables rules stored?
 
-The live rules are not in a file at all, they are in the kernel, which is why sudo iptables -S is the only reliable way to read them. The file a distro restores at boot is /etc/iptables/rules.v4 and rules.v6 on Debian and Ubuntu with iptables-persistent, and /etc/sysconfig/iptables and ip6tables on RHEL, Rocky, and Fedora. Neither file updates itself. A rule you add on the command line is live and absent from the file, and a line you edit into the file changes nothing until iptables-restore reads it, so the two drift apart silently. If ufw or firewalld is managing the box, the real source is their config (/etc/ufw/\*.rules) and the iptables rules you see are generated output.
+The live rules are not in a file at all, they are in the kernel, which is why sudo iptables -S is the only reliable way to read them. The file a distro restores at boot is /etc/iptables/rules.v4 and rules.v6 on Debian and Ubuntu with iptables-persistent, and /etc/sysconfig/iptables and ip6tables on RHEL, Rocky, and Fedora. Neither file updates itself. A rule you add on the command line is live and absent from the file, and a line you edit into the file changes nothing until iptables-restore reads it, so the two drift apart silently. If ufw or firewalld is managing the box, the real source is their config (/etc/ufw/*.rules) and the iptables rules you see are generated output.
 
 ### Is iptables deprecated?
 
@@ -320,4 +296,4 @@ It is not a service you start, so there is nothing to be running. The rules sit 
 They share one ruleset, so they cannot be kept apart. ufw generates iptables rules from its own config, and a rule you add by hand sits in the same chains, usually below ufw's, where it never gets reached, and it disappears the next time ufw reloads. If you need something ufw's syntax cannot express, such as NAT or a DOCKER-USER filter, put it in /etc/ufw/before.rules or after.rules so ufw applies it as part of its own set. The same applies to firewalld. Pick one manager per box and let it own the rules; sudo iptables -S and sudo nft list ruleset show you everything that is really loaded, whoever wrote it.
 
 ---
-Källa: https://sshworkbench.com/cheatsheets/iptables
+Source: https://sshworkbench.com/cheatsheets/iptables

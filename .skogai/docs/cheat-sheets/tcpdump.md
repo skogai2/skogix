@@ -2,29 +2,19 @@
 
 tcpdump is the packet capture tool on every Linux box, and it needs root, so prefix everything here with sudo. This sheet covers the filters people actually type, how to read a capture line once it scrolls past, and how to write a pcap file you can open in Wireshark.
 
-Last updated September 11, 2026
-
-On this page
-
-- [Basics](#basics)
-- [Reading the Output](#reading-the-output)
-- [Host and Port Filters](#host-and-port-filters)
-- [Combining and Excluding](#combining-and-excluding)
-- [Protocols](#protocols)
-- [Saving Captures](#saving-captures)
-- [Stopping and Rotating](#stopping-and-rotating)
-- [Wireshark Handoff](#wireshark-handoff)
-- [Payloads and Hex](#payloads-and-hex)
-- [MAC and VLAN Filters](#mac-and-vlan-filters)
-- [BPF Syntax](#bpf-syntax)
-- [Installing tcpdump](#installing-tcpdump)
-- [Gotchas](#gotchas)
-
 ## Basics
 
 tcpdump needs root. Every command here assumes sudo, and Ctrl+C stops a capture.
 
-[TABLE]
+| Command | What it does |
+|---|---|
+| `sudo tcpdump -i eth0` | Capture packets on network interface `eth0` |
+| `sudo tcpdump -i any` | Capture packets across all active network interfaces |
+| `sudo tcpdump -n` | Do not resolve IP addresses to domain hostnames (faster) |
+| `sudo tcpdump -nn` | Do not resolve IP addresses or port numbers |
+| `sudo tcpdump -c 20` | Capture 20 packets and exit |
+| `sudo tcpdump -w capture.pcap` | Write raw captured packets to pcap file for Wireshark |
+| `tcpdump -r capture.pcap` | Read and inspect saved pcap packet capture file |
 
 ## Reading the Output
 
@@ -34,13 +24,25 @@ A line is timestamp, source, destination, then the TCP state in brackets. This i
 14:22:31.478934 IP 10.0.0.9.52344 > 10.0.0.5.443: Flags [S], seq 1829375192, win 64240, length 0
 ```
 
-Copy
+| Field | Example | Meaning |
+|---|---|---|
+| Timestamp | `14:20:10.123456` | Packet capture time |
+| Source | `192.168.1.50.45678` | Source IP and source port |
+| Destination | `192.168.1.1.80` | Destination IP and destination port |
+| TCP Flags | `Flags [S]` | `[S]` SYN, `[.]` ACK, `[P]` PUSH, `[F]` FIN, `[R]` RST |
+| Sequence / Ack | `seq 1234, ack 5678` | TCP sequence and acknowledgement numbers |
+| Window & Length | `win 65535, length 0` | TCP window size and payload length in bytes |
 
-[TABLE]
+The dot inside the brackets is the ACK bit, so [P.] means push plus ack.
 
-The dot inside the brackets is the ACK bit, so \[P.\] means push plus ack.
-
-[TABLE]
+| Field | Example | Meaning |
+|---|---|---|
+| Timestamp | `14:20:10.123456` | Packet capture time |
+| Source | `192.168.1.50.45678` | Source IP and source port |
+| Destination | `192.168.1.1.80` | Destination IP and destination port |
+| TCP Flags | `Flags [S]` | `[S]` SYN, `[.]` ACK, `[P]` PUSH, `[F]` FIN, `[R]` RST |
+| Sequence / Ack | `seq 1234, ack 5678` | TCP sequence and acknowledgement numbers |
+| Window & Length | `win 65535, length 0` | TCP window size and payload length in bytes |
 
 Non-TCP lines have their own shapes:
 
@@ -50,7 +52,7 @@ Non-TCP lines have their own shapes:
 | ARP, Reply 10.0.0.5 is-at aa:bb:cc:dd:ee:ff | The answer, with the MAC address |
 | ICMP echo request, id 1, seq 1, length 64 | A ping leaving the host |
 | ICMP 10.0.0.5 udp port 53 unreachable | Nothing is listening on that UDP port |
-| 10.0.0.9.52344 \> 10.0.0.5.53: 4919+ A? example.com. (29) | A DNS query for an A record ([dig](https://sshworkbench.com/cheatsheets/dig) asks the same thing on purpose) |
+| 10.0.0.9.52344 > 10.0.0.5.53: 4919+ A? example.com. (29) | A DNS query for an A record ([dig](https://sshworkbench.com/cheatsheets/dig) asks the same thing on purpose) |
 
 ## Host and Port Filters
 
@@ -89,7 +91,14 @@ and, or, and not combine primitives; parentheses group them. Always quote the wh
 
 A bare protocol name is a filter on its own, and it combines with everything above.
 
-[TABLE]
+| Filter Syntax | Description |
+|---|---|
+| `tcpdump tcp` | Capture TCP packets only |
+| `tcpdump udp` | Capture UDP packets only |
+| `tcpdump icmp` | Capture ICMP packets (ping, unreachable) |
+| `tcpdump port 80` | Capture traffic on port 80 (TCP or UDP) |
+| `tcpdump host 192.168.1.100` | Filter traffic involving specific host IP |
+| `tcpdump src 10.0.0.1 and dst port 443` | Combine filters using boolean logic (`and`, `or`, `not`) |
 
 ## Saving Captures
 
@@ -137,16 +146,19 @@ Capture on the server, analyze on your desktop. Wireshark opens .pcap and .pcapn
 
 ## Payloads and Hex
 
-[TABLE]
+| Flag | Meaning | Description |
+|---|---|---|
+| `-X` | Hex and ASCII | Print headers and payload in both hexadecimal and ASCII |
+| `-XX` | Extra Hex | Print ethernet header plus payload in hex and ASCII |
+| `-A` | ASCII Only | Print payload in ASCII text only (ideal for HTTP/plain text) |
+| `-s 0` | Full Packet | Set snaplen to 0 (captures full packet without truncation) |
 
 TLS traffic on 443 shows only gibberish with -A. That is the encryption working, not a tcpdump problem.
 
-```
+```bash
 # Busiest source addresses in a saved capture:
 sudo tcpdump -nr capture.pcap | awk '{print $3}' | cut -d. -f1-4 | sort | uniq -c | sort -rn | head
 ```
-
-Copy
 
 ## MAC and VLAN Filters
 
@@ -167,19 +179,19 @@ vlan shifts every offset that follows it, so it has to come first in the express
 
 ## BPF Syntax
 
-Filters compile to Berkeley Packet Filter programs, and the bracket syntax reads raw bytes: proto\[offset\] is a byte within that protocol's header. The practical use is matching TCP flags.
+Filters compile to Berkeley Packet Filter programs, and the bracket syntax reads raw bytes: proto[offset] is a byte within that protocol's header. The practical use is matching TCP flags.
 
 | Filter | What it matches |
 |----|----|
-| 'tcp\[tcpflags\] & tcp-syn != 0' | Any packet with SYN set (new connections) |
-| 'tcp\[tcpflags\] == tcp-syn' | SYN only, no ACK (inbound connection attempts) |
-| 'tcp\[tcpflags\] & (tcp-syn\|tcp-ack) == tcp-syn' | Same, spelled with a mask |
-| 'tcp\[tcpflags\] & tcp-rst != 0' | Resets (something refusing connections) |
-| 'tcp\[tcpflags\] & tcp-fin != 0' | Connection teardowns |
-| 'tcp\[13\] & 2 != 0' | SYN again, by raw offset (13 is the flags byte) |
+| 'tcp[tcpflags] & tcp-syn != 0' | Any packet with SYN set (new connections) |
+| 'tcp[tcpflags] == tcp-syn' | SYN only, no ACK (inbound connection attempts) |
+| 'tcp[tcpflags] & (tcp-syn\|tcp-ack) == tcp-syn' | Same, spelled with a mask |
+| 'tcp[tcpflags] & tcp-rst != 0' | Resets (something refusing connections) |
+| 'tcp[tcpflags] & tcp-fin != 0' | Connection teardowns |
+| 'tcp[13] & 2 != 0' | SYN again, by raw offset (13 is the flags byte) |
 | 'greater 1000' | Packets of at least 1000 bytes |
 
-```
+```bash
 # Who is trying to open connections to this box, live:
 sudo tcpdump -i any -n 'tcp[tcpflags] == tcp-syn'
 
@@ -187,50 +199,26 @@ sudo tcpdump -i any -n 'tcp[tcpflags] == tcp-syn'
 sudo tcpdump -d 'tcp[tcpflags] & tcp-syn != 0'
 ```
 
-Copy
-
 ## Installing tcpdump
 
-[TABLE]
+| Distribution | Command |
+|---|---|
+| Debian / Ubuntu | `sudo apt install tcpdump` |
+| Arch Linux | `sudo pacman -S tcpdump` |
+| Fedora / RHEL | `sudo dnf install tcpdump` |
 
 tcpdump lives in /usr/sbin, which is not on a normal user's PATH on Debian and Ubuntu. Running it under sudo finds it; typing tcpdump as yourself often does not.
 
 ## Gotchas
 
-- packets dropped by kernel
-  at the end means tcpdump could not keep up. Add
-  -n
-  , write to a file with
-  -w
-  instead of printing, and narrow the filter;
-  -B 4096
-  raises the capture buffer.
-- syntax error in filter expression
-  is usually the shell eating your quotes. Wrap any multi-word filter in single quotes, and check keywords (
-  portrange
-  , not
-  port-range
-  ).
-  -d
-  compiles a filter without capturing, so you can test one in a second.
-- Capturing over SSH shows you your own SSH packets, which generate more packets, forever. Start every remote capture with
-  'not port 22'
-  .
-- -i any
-  sees all interfaces but cannot use promiscuous mode, so it misses traffic not addressed to the host. Switch to the real interface once you know it.
-- Old tcpdump versions truncated packets at 68 bytes by default. Modern ones capture full packets, but
-  -s0
-  still makes the intent explicit for files headed to Wireshark.
-- checksum incorrect
-  on outgoing packets is almost always checksum offload: the NIC fills the field in after tcpdump has already seen the packet. Nothing is wrong.
+- packets dropped by kernel at the end means tcpdump could not keep up. Add -n, write to a file with -w instead of printing, and narrow the filter; -B 4096 raises the capture buffer.
+- syntax error in filter expression is usually the shell eating your quotes. Wrap any multi-word filter in single quotes, and check keywords ( portrange, not port-range). -d compiles a filter without capturing, so you can test one in a second.
+- Capturing over SSH shows you your own SSH packets, which generate more packets, forever. Start every remote capture with 'not port 22'.
+- -i any sees all interfaces but cannot use promiscuous mode, so it misses traffic not addressed to the host. Switch to the real interface once you know it.
+- Old tcpdump versions truncated packets at 68 bytes by default. Modern ones capture full packets, but -s0 still makes the intent explicit for files headed to Wireshark.
+- checksum incorrect on outgoing packets is almost always checksum offload: the NIC fills the field in after tcpdump has already seen the packet. Nothing is wrong.
 - tcpdump has no idea which process sent a packet. Map the port to a PID with [ss](https://sshworkbench.com/cheatsheets/netstat-ss) or [lsof](https://sshworkbench.com/cheatsheets/lsof), then go back to the capture.
 - tcpdump shows packets arriving; it does not show what the firewall then drops. Compare with your [iptables rules](https://sshworkbench.com/cheatsheets/iptables) when packets arrive but the service never sees them.
-
-### Stop memorizing commands
-
-SSH Workbench puts the common server tasks behind buttons: services, Docker, files, cron, firewall. The terminal is still there when you want it.
-
-[Try free for 7 days](https://sshworkbench.com/#install)
 
 ## tcpdump FAQ
 
@@ -240,7 +228,7 @@ On the way in, yes. tcpdump taps the device layer before netfilter sees the pack
 
 ### Can I run tcpdump without root?
 
-Yes, with file capabilities: sudo setcap cap_net_raw,cap_net_admin+eip \$(which tcpdump) lets your normal user capture, until the next package upgrade replaces the binary and resets it. There is a second thing to know either way. After tcpdump opens the interface it drops privileges to the unprivileged tcpdump user, so any directory you write -w files into has to be writable by that user, not just by you. /tmp works, a root-owned directory fails with a permission error even under sudo.
+Yes, with file capabilities: sudo setcap cap_net_raw,cap_net_admin+eip $(which tcpdump) lets your normal user capture, until the next package upgrade replaces the binary and resets it. There is a second thing to know either way. After tcpdump opens the interface it drops privileges to the unprivileged tcpdump user, so any directory you write -w files into has to be writable by that user, not just by you. /tmp works, a root-owned directory fails with a permission error even under sudo.
 
 ### Why is tcpdump not showing any packets?
 
@@ -255,4 +243,4 @@ Use tcpdump to get the packets and Wireshark to understand them. tcpdump is alre
 Nowhere, unless you ask. Without -w it prints to the terminal and keeps nothing. With -w capture.pcap the file lands in the working directory of the shell you launched it from, which under sudo is still your own directory rather than root's. Pass an absolute path such as -w /tmp/capture.pcap when you are not sure where you are. Nothing is written until the buffer flushes either, so a file can look empty until you stop the capture with Ctrl+C or add -U to write packet by packet.
 
 ---
-Källa: https://sshworkbench.com/cheatsheets/tcpdump
+Source: https://sshworkbench.com/cheatsheets/tcpdump

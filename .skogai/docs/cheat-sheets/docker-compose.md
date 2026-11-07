@@ -2,48 +2,33 @@
 
 Docker Compose runs a multi-container app from one compose.yaml file. This sheet covers both halves of the job: the docker compose commands you type, and the YAML keys you write, from ports and volumes to networks, environment variables and healthchecks.
 
-Last updated September 11, 2026
-
-On this page
-
-- [docker compose vs docker-compose](#docker-compose-vs-docker-compose)
-- [Start and Stop](#start-and-stop)
-- [Status and Logs](#status-and-logs)
-- [Exec and Run](#exec-and-run)
-- [Build and Pull](#build-and-pull)
-- [Files, Projects and Profiles](#files-projects-and-profiles)
-- [Environment Variables](#environment-variables)
-- [Validate and Clean Up](#validate-and-clean-up)
-- [compose.yaml Keys](#composeyaml-keys)
-- [Volumes](#volumes)
-- [Networks](#networks)
-- [Restart and Autostart](#restart-and-autostart)
-- [Limits, Users and Devices](#limits-users-and-devices)
-- [Example compose.yaml](#example-composeyaml)
-- [Healthcheck and depends_on](#healthcheck-and-dependson)
-- [command vs entrypoint](#command-vs-entrypoint)
-- [Install and Version](#install-and-version)
-- [Gotchas](#gotchas)
-
 Compose v2 is a Docker CLI plugin, so the command is docker compose with a space. The hyphenated docker-compose was v1, written in Python, and has been retired. Every command below is v2.
 
 ## docker compose vs docker-compose
 
 Most tutorials written before 2023 use the hyphen. Translating them is usually one keystroke, but a few things moved.
 
-[TABLE]
+| Feature | `docker compose` (V2) | `docker-compose` (V1) |
+|---|---|---|
+| Implementation | Written in Go, built into Docker CLI | Standalone Python script |
+| Invocation | Space syntax (`docker compose`) | Dash syntax (`docker-compose`) |
+| Status | Active current standard | Deprecated and discontinued |
+| Performance | Fast native execution and parallel builds | Slower execution and startup |
 
 Two error messages come out of this split, and they mean opposite things. The third case is the one that confuses people most, because the old command works:
 
-[TABLE]
+| Feature | `docker compose` (V2) | `docker-compose` (V1) |
+|---|---|---|
+| Implementation | Written in Go, built into Docker CLI | Standalone Python script |
+| Invocation | Space syntax (`docker compose`) | Dash syntax (`docker-compose`) |
+| Status | Active current standard | Deprecated and discontinued |
+| Performance | Fast native execution and parallel builds | Slower execution and startup |
 
 If scripts on the machine still call the old name, an alias covers interactive shells:
 
-```
+```bash
 alias docker-compose='docker compose'
 ```
-
-Copy
 
 Aliases are not read by shell scripts, so anything running under sh script.sh or cron needs the command edited, or a two-line wrapper in /usr/local/bin/docker-compose.
 
@@ -51,7 +36,14 @@ Aliases are not read by shell scripts, so anything running under sh script.sh or
 
 Run these from the directory that holds compose.yaml, or point at it with -f.
 
-[TABLE]
+| Command | What it does |
+|---|---|
+| `docker compose up -d` | Build, create, and start containers in background |
+| `docker compose down` | Stop and remove containers, networks, and internal resources |
+| `docker compose down -v` | Stop containers and also delete named volumes |
+| `docker compose start` | Start existing stopped containers |
+| `docker compose stop` | Stop running containers without removing them |
+| `docker compose restart` | Restart all project containers |
 
 up -d is also how you apply changes: it compares the file against the running containers and recreates only the ones whose configuration changed. restart does not do that.
 
@@ -79,22 +71,28 @@ up -d is also how you apply changes: it compares the file against the running co
 
 exec runs inside an existing container. run starts a new one from the service definition, which is the right tool for one-off jobs like migrations.
 
-[TABLE]
+| Command | What it does |
+|---|---|
+| `docker compose exec web sh` | Open interactive shell inside running `web` service container |
+| `docker compose run --rm web npm test` | Run one-off task in new service container and delete upon exit |
+| `docker compose exec -T db pg_dump` | Run command disabling TTY allocation (ideal for cron/scripts) |
 
 Without --rm, every run leaves a stopped container behind. docker compose ps -a shows them and docker compose rm clears them.
 
 ## Build and Pull
 
-[TABLE]
+| Command | What it does |
+|---|---|
+| `docker compose build` | Build or rebuild service images defined with `build:` |
+| `docker compose build --no-cache` | Build images from scratch without layer caching |
+| `docker compose pull` | Download newer versions of specified service images |
 
 Update a running stack to newer images:
 
-```
+```bash
 docker compose pull
 docker compose up -d
 ```
-
-Copy
 
 up -d recreates only the containers whose image changed. For services you build yourself, docker compose up -d --build does the same thing in one step. The [Dockerfile generator](https://sshworkbench.com/tools/dockerfile-generator) is a quick way to get the build: side started.
 
@@ -110,13 +108,15 @@ watch needs a develop: block on the service, and it replaces the usual edit, reb
           path: package.json
 ```
 
-Copy
-
 sync copies changed files into the running container, rebuild rebuilds the image and recreates the container, and sync+restart copies then restarts the process.
 
 ## Files, Projects and Profiles
 
-[TABLE]
+| Option / Flag | Example | What it does |
+|---|---|---|
+| Multiple Files | `-f compose.yml -f compose.prod.yml` | Override base compose file with production settings |
+| Project Name | `-p myproject up -d` | Namespace containers under custom project name |
+| Service Profiles | `--profile debug up -d` | Start only services belonging to specified profile |
 
 compose.override.yaml is loaded automatically alongside compose.yaml when you do not pass -f, which is the usual way to keep dev-only ports and bind mounts out of the main file. The same flags can live in the environment: COMPOSE_FILE=compose.yaml:compose.prod.yaml, COMPOSE_PROFILES=debug, COMPOSE_PROJECT_NAME=myproject.
 
@@ -141,19 +141,22 @@ services:
     logging: *default-logging
 ```
 
-Copy
-
 extends: on a service does the same for one service at a time, pulling its definition from another file and letting you override parts of it.
 
 ## Environment Variables
 
-Two different things share the name. \${VAR} in the file is substituted by Compose before anything starts, reading the shell environment and the project .env file. environment: and env_file: put variables inside the container. A variable in .env does not reach the container unless you pass it through.
+Two different things share the name. ${VAR} in the file is substituted by Compose before anything starts, reading the shell environment and the project .env file. environment: and env_file: put variables inside the container. A variable in .env does not reach the container unless you pass it through.
 
-[TABLE]
+| Source | Location / Syntax | Priority |
+|---|---|---|
+| CLI Flag | `docker compose --env-file .env.prod` | Highest |
+| Shell Environment | `export DB_PASS=secret` | High |
+| Project `.env` | `.env` in same directory | Standard |
+| `compose.yaml` | `environment: [KEY=VAL]` | Service-level override |
 
 When the same variable is set in more than one place, the order from strongest to weakest is run -e, then environment:, then env_file:, then ENV in the image's Dockerfile. warning: The "X" variable is not set. Defaulting to a blank string. means substitution found nothing, and docker compose config is the fastest way to see what it did use.
 
-For passwords, secrets: keeps the value out of the environment and out of docker inspect. The file is mounted at /run/secrets/\<name\>, and most official images take a \_FILE variant that reads it:
+For passwords, secrets: keeps the value out of the environment and out of docker inspect. The file is mounted at /run/secrets/<name>, and most official images take a \_FILE variant that reads it:
 
 ```
 services:
@@ -168,8 +171,6 @@ secrets:
   db_password:
     file: ./db_password.txt
 ```
-
-Copy
 
 ## Validate and Clean Up
 
@@ -191,7 +192,15 @@ Found orphan containers on up is a warning, not an error: a service was renamed 
 
 The keys you actually use, per service. Indentation is two spaces and matters.
 
-[TABLE]
+| Directive | Purpose |
+|---|---|
+| `services:` | Defines the individual containers that make up the application |
+| `image:` | Docker image to run for the service |
+| `build:` | Configuration context and Dockerfile for building the image |
+| `ports:` | Forward host ports to container (`"8080:80"`) |
+| `volumes:` | Mount host paths or named volumes |
+| `environment:` | Set environment variables inside the service container |
+| `depends_on:` | Express startup dependencies between services |
 
 Top-level volumes: and networks: declare the names the services refer to:
 
@@ -202,13 +211,15 @@ networks:
   backend:
 ```
 
-Copy
-
 Services on the same project network reach each other by service name (db:5432), which is why DB_HOST=db works. Compose creates a default network per project, so you only need networks: when you want to split services up.
 
 ## Volumes
 
-[TABLE]
+| Volume Type | Compose Syntax | Description |
+|---|---|---|
+| Bind Mount | `- ./src:/app/src` | Maps host directory directly into container |
+| Named Volume | `- db_data:/var/lib/mysql` | Docker-managed persistent volume (declared under top-level `volumes:`) |
+| Read-Only | `- ./config:/etc/app:ro` | Prevent container from modifying host files |
 
 Named volumes have to be declared at the top level before a service can use one:
 
@@ -219,15 +230,17 @@ volumes:
     external: true
 ```
 
-Copy
-
 external: true means Compose will use a volume you created yourself with docker volume create and will not remove it, even on down -v. Everything else gets the project name as a prefix, so data in project myapp is really myapp_data and lives under /var/lib/docker/volumes/myapp_data/\_data on a Linux host. docker volume ls lists them, docker volume inspect myapp_data gives the path, and docker compose config --volumes prints the names the file declares.
 
 ## Networks
 
-Compose puts every service on a network called \<project\>\_default and registers each service name in its DNS, so db resolves from any other container in the project. Nothing else is needed for containers to talk to each other.
+Compose puts every service on a network called <project>\_default and registers each service name in its DNS, so db resolves from any other container in the project. Nothing else is needed for containers to talk to each other.
 
-[TABLE]
+| Directive | Description |
+|---|---|
+| `networks:` (top-level) | Declare custom project networks |
+| `networks:` (service-level) | Attach service to specific network |
+| `external: true` | Connect to network created outside of compose (`docker network create`) |
 
 To join a network created outside the project, for example one shared with a reverse proxy, declare it as external:
 
@@ -243,17 +256,20 @@ networks:
     external: true
 ```
 
-Copy
-
 could not resolve host or a connection refused between two containers is almost always one of three things: the services are not on a shared network, you used the published host port instead of the container port (db:5432, not db:15432), or you used localhost, which inside a container means that container. docker compose exec web getent hosts db settles it in one line. This is how [Traefik](https://sshworkbench.com/cheatsheets/traefik) and [Caddy](https://sshworkbench.com/cheatsheets/caddy) reach app containers: the proxy joins the same network and talks to the service name.
 
 ## Restart and Autostart
 
-[TABLE]
+| Policy | Behavior |
+|---|---|
+| `restart: "no"` | Do not restart container automatically (default) |
+| `restart: always` | Always restart container if it stops or upon daemon reboot |
+| `restart: on-failure` | Restart only if container exits with non-zero exit code |
+| `restart: unless-stopped` | Always restart unless user explicitly stops the container |
 
 For a stack that should come back after a reboot, restart: unless-stopped on every service plus sudo systemctl enable docker is enough. When the stack needs a defined boot order, a mounted disk, or a wait for the network, a unit file is better:
 
-```
+```bash
 [Unit]
 Description=myapp compose stack
 Requires=docker.service
@@ -270,13 +286,16 @@ ExecStop=/usr/bin/docker compose down
 WantedBy=multi-user.target
 ```
 
-Copy
-
 systemctl enable --now myapp then owns the stack. The [systemd unit generator](https://sshworkbench.com/tools/systemd-unit-generator) writes files like this, and the [systemctl commands](https://sshworkbench.com/cheatsheets/systemctl) sheet covers the rest. A container stuck in a restart loop is a different problem; see [Docker container keeps restarting](https://sshworkbench.com/fix/docker-container-keeps-restarting).
 
 ## Limits, Users and Devices
 
-[TABLE]
+| Key | Example | Purpose |
+|---|---|---|
+| `cpus:` | `cpus: '1.5'` | Limit container CPU allocation |
+| `memory:` | `memory: 512M` | Limit container RAM usage |
+| `user:` | `user: "1000:1000"` | Run container process as specific UID/GID |
+| `devices:` | `devices: ["/dev/ttyUSB0"]` | Pass host hardware devices into container |
 
 deploy.resources is honoured by plain docker compose, not only by Swarm. GPUs go under reservations:
 
@@ -289,8 +308,6 @@ deploy.resources is honoured by plain docker compose, not only by Swarm. GPUs go
               count: all
               capabilities: [gpu]
 ```
-
-Copy
 
 ## Example compose.yaml
 
@@ -330,21 +347,26 @@ volumes:
   data:
 ```
 
-Copy
-
-\${DB_PASSWORD:-changeme} reads DB_PASSWORD from the shell or the project .env file and falls back to changeme. The [Docker Compose generator](https://sshworkbench.com/tools/docker-compose-generator) builds files like this for common stacks.
+${DB_PASSWORD:-changeme} reads DB_PASSWORD from the shell or the project .env file and falls back to changeme. The [Docker Compose generator](https://sshworkbench.com/tools/docker-compose-generator) builds files like this for common stacks.
 
 ## Healthcheck and depends_on
 
 depends_on alone only orders startup: the db container starts first, but Postgres may still be initialising when web connects. A healthcheck plus condition: service_healthy makes Compose wait.
 
-[TABLE]
+| Key | Purpose |
+|---|---|
+| `healthcheck:` | Defines test command (e.g. `curl -f http://localhost:80/`) and intervals |
+| `depends_on:` | Order container startup |
+| `condition: service_healthy` | Delay starting dependent service until dependency healthcheck passes |
 
 The check runs inside the container, so curl or pg_isready has to exist in that image. Alpine images often lack curl; wget -qO- http://localhost:3000/health usually works instead. docker compose ps shows (healthy) or (unhealthy) next to the state, and docker inspect -f '{{json .State.Health}}' container shows the last few results.
 
 ## command vs entrypoint
 
-[TABLE]
+| Directive | What it does |
+|---|---|
+| `command:` | Overrides the default `CMD` instruction defined in Dockerfile |
+| `entrypoint:` | Overrides the `ENTRYPOINT` executable defined in Dockerfile |
 
 The string form (command: npm start) is split on spaces by Compose without a shell, so quotes inside it are kept literally and && is passed as an argument. When in doubt, use the list form and name sh -c explicitly. A multi-line script can go under a folded block scalar:
 
@@ -355,17 +377,20 @@ The string form (command: npm start) is split on spaces by Compose without a she
              npm start"
 ```
 
-Copy
-
 ## Install and Version
 
 Compose v2 is a plugin, so it installs next to the Docker CLI rather than on its own.
 
-[TABLE]
+| Platform | Command |
+|---|---|
+| Debian / Ubuntu | `sudo apt install docker-compose-plugin` |
+| Arch Linux | `sudo pacman -S docker-compose` |
+| Fedora / RHEL | `sudo dnf install docker-compose-plugin` |
+| Verify version | `docker compose version` |
 
 The distribution package called docker-compose is v1 on older Debian and Ubuntu releases, which is why the plugin package has a different name and comes from Docker's repository, not the distribution's. To install by hand:
 
-```
+```bash
 mkdir -p ~/.docker/cli-plugins
 curl -SL https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64 \
   -o ~/.docker/cli-plugins/docker-compose
@@ -373,93 +398,21 @@ chmod +x ~/.docker/cli-plugins/docker-compose
 docker compose version
 ```
 
-Copy
-
-Use /usr/local/lib/docker/cli-plugins/ instead of ~/.docker/cli-plugins/ to install it for every user. If every command needs sudo, add yourself to the docker group with sudo usermod -aG docker \$USER and log out and back in; see [Cannot connect to the Docker daemon](https://sshworkbench.com/fix/docker-cannot-connect-to-docker-daemon) when it still fails.
+Use /usr/local/lib/docker/cli-plugins/ instead of ~/.docker/cli-plugins/ to install it for every user. If every command needs sudo, add yourself to the docker group with sudo usermod -aG docker $USER and log out and back in; see [Cannot connect to the Docker daemon](https://sshworkbench.com/fix/docker-cannot-connect-to-docker-daemon) when it still fails.
 
 ## Gotchas
 
-- docker compose restart
-  does not read the file again. After editing
-  compose.yaml
-  , run
-  docker compose up -d
-  ; it recreates only what changed.
-- stop
-  and
-  down
-  are not the same.
-  stop
-  keeps the containers so
-  start
-  resumes them with their writable layer intact;
-  down
-  deletes them and the project network, and
-  up
-  builds new ones. Named volumes outlive both.
-- down -v
-  deletes every named volume declared in the file, including the database.
-  down
-  alone keeps them.
-- the attribute "version" is obsolete
-  is v2 telling you to delete the
-  version: "3.8"
-  line at the top of the file. It has no effect and never did in v2.
-- additional property X is not allowed
-  is a schema error: a misspelled key, or a service key written at the top level (or the other way round).
-  docker compose config -q
-  points at the line.
-- depends_on
-  without a
-  condition
-  only orders container starts. Add a healthcheck and
-  condition: service_healthy
-  when the app crashes on boot because the database is not ready.
-- Ports in YAML must be quoted (
-  "8080:80"
-  );
-  22:22
-  unquoted is parsed as a base-60 number by some YAML parsers and becomes garbage.
-- .env
-  in the project directory feeds
-  \${VAR}
-  substitution in the file.
-  env_file:
-  feeds the container. They are different files with different jobs, and a variable in
-  .env
-  does not reach the container unless you also pass it through
-  environment:
-  or
-  env_file:
-  .
-- Services started with
-  --profile
-  need the same
-  --profile
-  on
-  down
-  , or their containers are left running.
-- Error response from daemon: ... port is already allocated
-  on
-  up
-  means another container, or a process on the host, holds that port.
-  docker ps
-  and
-  ss -tlnp
-  find it; see [Error response from daemon](https://sshworkbench.com/fix/docker-error-response-from-daemon) for the other variants.
-- Bare
-  docker
-  commands work on Compose containers too:
-  docker logs myproject-web-1
-  ,
-  docker exec -it myproject-web-1 sh
-  . The [docker commands](https://sshworkbench.com/cheatsheets/docker) sheet covers them.
-
-### Manage Docker without the CLI gymnastics
-
-SSH Workbench gives you a visual layer over Docker and Podman: start, stop, inspect, view logs without memorising flags.
-
-[Try free for 7 days](https://sshworkbench.com/#install)
+- docker compose restart does not read the file again. After editing compose.yaml, run docker compose up -d; it recreates only what changed.
+- stop and down are not the same. stop keeps the containers so start resumes them with their writable layer intact; down deletes them and the project network, and up builds new ones. Named volumes outlive both.
+- down -v deletes every named volume declared in the file, including the database. down alone keeps them.
+- the attribute "version" is obsolete is v2 telling you to delete the version: "3.8" line at the top of the file. It has no effect and never did in v2.
+- additional property X is not allowed is a schema error: a misspelled key, or a service key written at the top level (or the other way round). docker compose config -q points at the line.
+- depends_on without a condition only orders container starts. Add a healthcheck and condition: service_healthy when the app crashes on boot because the database is not ready.
+- Ports in YAML must be quoted ( "8080:80"); 22:22 unquoted is parsed as a base-60 number by some YAML parsers and becomes garbage.
+- .env in the project directory feeds ${VAR} substitution in the file. env_file: feeds the container. They are different files with different jobs, and a variable in.env does not reach the container unless you also pass it through environment: or env_file:.
+- Services started with --profile need the same --profile on down, or their containers are left running.
+- Error response from daemon: ... port is already allocated on up means another container, or a process on the host, holds that port. docker ps and ss -tlnp find it; see [Error response from daemon](https://sshworkbench.com/fix/docker-error-response-from-daemon) for the other variants.
+- Bare docker commands work on Compose containers too: docker logs myproject-web-1, docker exec -it myproject-web-1 sh. The [docker commands](https://sshworkbench.com/cheatsheets/docker) sheet covers them.
 
 ## Docker Compose FAQ
 
@@ -484,4 +437,4 @@ Yes, on a single host, and plenty of small production stacks run exactly this wa
 Compose looks in the current directory for compose.yaml, then compose.yml, then docker-compose.yaml, then docker-compose.yml, and if it finds none it walks up the parent directories until it hits the filesystem root. no configuration file provided: not found means that search came up empty, almost always because of the directory you are standing in. compose.override.yaml next to the file is merged in automatically. For a stack someone else started, docker compose ls prints the config file path of every running project, and docker inspect -f '{{index .Config.Labels "com.docker.compose.project.working_dir"}}' container-name gets it from a single container.
 
 ---
-Källa: https://sshworkbench.com/cheatsheets/docker-compose
+Source: https://sshworkbench.com/cheatsheets/docker-compose

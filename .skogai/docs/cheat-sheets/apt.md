@@ -2,27 +2,6 @@
 
 apt is the package manager on Debian, Ubuntu, and their derivatives, including Raspberry Pi OS and Mint. This apt commands cheat sheet covers updating, installing, and removing packages, repositories and keys, held packages, and the errors apt update likes to throw.
 
-Last updated September 11, 2026
-
-On this page
-
-- [Update and Upgrade](#update-and-upgrade)
-- [Install and Remove](#install-and-remove)
-- [Common Options](#common-options)
-- [Search and Show](#search-and-show)
-- [Dependencies](#dependencies)
-- [List Installed Packages](#list-installed-packages)
-- [Hold Packages](#hold-packages)
-- [Downgrade and Download](#downgrade-and-download)
-- [Repositories and Keys](#repositories-and-keys)
-- [Clean Up and Fix Broken](#clean-up-and-fix-broken)
-- [Proxy and Offline](#proxy-and-offline)
-- [apt vs apt-get](#apt-vs-apt-get)
-- [History and Logs](#history-and-logs)
-- [Common apt update Errors](#common-apt-update-errors)
-- [apt, dnf and pacman](#apt-dnf-and-pacman)
-- [Tips](#tips)
-
 ## Update and Upgrade
 
 apt update refreshes the package lists and installs nothing; apt upgrade installs the new versions. Run them in that order.
@@ -40,34 +19,61 @@ apt update refreshes the package lists and installs nothing; apt upgrade install
 
 ## Install and Remove
 
-[TABLE]
+| Command | What it does |
+|---|---|
+| `sudo apt install nginx` | Install a package |
+| `sudo apt install -y nginx` | Install without prompting for confirmation |
+| `sudo apt install nginx curl htop` | Install multiple packages at once |
+| `sudo apt install ./package.deb` | Install a local `.deb` file, resolving dependencies |
+| `sudo apt remove nginx` | Remove package binaries but leave configuration files |
+| `sudo apt purge nginx` | Remove package completely, including configuration files |
+| `sudo apt autoremove` | Remove packages that were installed as dependencies but are no longer needed |
+| `sudo apt autoremove --purge` | Remove unneeded dependencies and delete their config files |
+| `sudo apt reinstall nginx` | Reinstall an existing package |
 
 ## Common Options
 
-The shape of every command is apt \[options\] \<subcommand\> \[package...\], and the options below work on most subcommands.
+The shape of every command is apt [options] <subcommand> [package...], and the options below work on most subcommands.
 
-[TABLE]
+| Option | Meaning |
+|---|---|
+| `-y`, `--yes` | Assume "yes" to all prompts and run non-interactively |
+| `-s`, `--simulate`, `--dry-run` | Perform a simulation without making any actual system changes |
+| `-q`, `-qq` | Quiet mode (less output; `-qq` produces no output except on error) |
+| `-o Option=Value` | Set an APT configuration option on the fly |
+| `--no-install-recommends` | Do not treat recommended packages as dependencies to install |
+| `--only-upgrade` | Upgrade specified package only if it is already installed |
 
-```
+```bash
 DEBIAN_FRONTEND=noninteractive apt-get -y install postfix
 ```
 
-Copy
-
 ## Search and Show
 
-[TABLE]
+| Command | What it does |
+|---|---|
+| `apt search nginx` | Search package names and descriptions for a term |
+| `apt show nginx` | Display detailed package info (version, dependencies, maintainer, size) |
+| `apt-cache search ^nginx$` | Search with regular expressions |
+| `apt-cache policy nginx` | Show installed vs available versions and repository priorities |
+| `apt-cache madison nginx` | Show available versions and source repositories in tabular format |
 
 ## Dependencies
 
-[TABLE]
+| Command | What it does |
+|---|---|
+| `apt-cache depends nginx` | List all direct dependencies and recommendations for a package |
+| `apt-cache rdepends nginx` | Reverse dependencies: list what packages depend on `nginx` |
+| `apt-cache rdepends --installed nginx` | Reverse dependencies among currently installed packages |
+| `apt-mark showmanual` | List packages installed explicitly (not pulled in as dependencies) |
+| `apt-mark showauto` | List packages marked as automatically installed dependencies |
 
 ## List Installed Packages
 
 | Command | What it does |
 |----|----|
 | apt list --installed | Every installed package |
-| apt list --installed 2\>/dev/null \| grep nginx | Check whether a package is installed |
+| apt list --installed 2>/dev/null \| grep nginx | Check whether a package is installed |
 | dpkg -s nginx | Status and version of one package; non-zero exit if absent |
 | dpkg -l | The classic full listing with status flags |
 | dpkg -L nginx | Files a package installed |
@@ -87,13 +93,17 @@ A held package keeps its current version through every upgrade until you release
 
 Downgrading only works while the repository still carries the older version; apt list -a nginx shows what is left. Hold the package afterwards or the next upgrade puts the new version straight back.
 
-[TABLE]
+| Command | What it does |
+|---|---|
+| `sudo apt install nginx=1.18.0-0ubuntu1` | Install or downgrade to a specific package version |
+| `apt download nginx` | Download `.deb` file to current directory without installing |
+| `apt-get source nginx` | Download source code package for `nginx` |
 
 ## Repositories and Keys
 
 Current releases (Debian 12+, Ubuntu 24.04+) use deb822 .sources files under /etc/apt/sources.list.d/ instead of one-line deb entries:
 
-```
+```bash
 # /etc/apt/sources.list.d/example.sources
 Types: deb
 URIs: https://packages.example.com/apt
@@ -102,33 +112,37 @@ Components: main
 Signed-By: /etc/apt/keyrings/example.gpg
 ```
 
-Copy
-
 apt-key is deprecated and gone from the newest releases. Keys go into /etc/apt/keyrings/ and are referenced by Signed-By:
 
-```
+```bash
 curl -fsSL https://packages.example.com/key.asc | sudo gpg --dearmor -o /etc/apt/keyrings/example.gpg
 ```
 
-Copy
-
-[TABLE]
+| Command / Path | What it does |
+|---|---|
+| `/etc/apt/sources.list.d/` | Directory for repository definition files (`.sources` or `.list`) |
+| `/etc/apt/keyrings/` | Standard directory for repository GPG public keys |
+| `sudo add-apt-repository ppa:user/repo` | Add an Ubuntu PPA repository (Ubuntu only) |
+| `sudo add-apt-repository --remove ppa:user/repo` | Remove a previously added PPA |
 
 ## Clean Up and Fix Broken
 
-[TABLE]
+| Command | What it does |
+|---|---|
+| `sudo apt --fix-broken install` | Fix broken dependencies and finish incomplete installs (`-f`) |
+| `sudo dpkg --configure -a` | Configure any unpacked but unconfigured packages |
+| `sudo apt clean` | Clear out the entire local cache of downloaded `.deb` files |
+| `sudo apt autoclean` | Remove downloaded `.deb` packages that can no longer be downloaded |
 
 ## Proxy and Offline
 
 http_proxy in your shell does not survive sudo unless you pass sudo -E, which is why a proxy that works for curl often does not work for apt. Set it in apt's own config instead:
 
-```
+```bash
 # /etc/apt/apt.conf.d/95proxy
 Acquire::http::Proxy "http://proxy:3128";
 Acquire::https::Proxy "http://proxy:3128";
 ```
-
-Copy
 
 | Command | What it does |
 |----|----|
@@ -157,13 +171,19 @@ apt has no history subcommand the way dnf does. The record lives in /var/log/apt
 | Command | What it does |
 |----|----|
 | less /var/log/apt/history.log | What was installed, upgraded, or removed, and when |
-| zgrep "Install:" /var/log/apt/history.log\* | Search the rotated history too |
+| zgrep "Install:" /var/log/apt/history.log* | Search the rotated history too |
 | less /var/log/apt/term.log | Full terminal output of past apt runs |
 | grep " install " /var/log/dpkg.log | dpkg's own log, one line per package action |
 
 ## Common apt update Errors
 
-[TABLE]
+| Error Message | Cause | Solution |
+|---|---|---|
+| `Could not get lock /var/lib/dpkg/lock-frontend` | Another process is holding the apt/dpkg lock | Wait for it to finish or inspect with `ps aux \| grep apt` |
+| `NO_PUBKEY <KEY_ID>` | Repository public key is missing or expired | Import key into `/etc/apt/keyrings/` or fetch via `gpg` |
+| `The repository ... does not have a Release file` | Old/unsupported distro release or dead PPA | Remove offending file from `/etc/apt/sources.list.d/` |
+| `Failed to fetch ... 404 Not Found` | Package lists point to non-existent URL | Update repository sources URL or move to archive |
+| `Certificate verification failed` | System clock out of sync or missing CA certs | Run `sudo apt install --reinstall ca-certificates` and sync time |
 
 ## apt, dnf and pacman
 
@@ -181,29 +201,10 @@ If the shell answers apt: command not found, the machine is almost certainly not
 
 ## Tips
 
-- Security patches can install themselves:
-  sudo apt install unattended-upgrades
-  , then
-  sudo dpkg-reconfigure -plow unattended-upgrades
-  . It is also the usual holder of the dpkg lock right after boot.
-- In scripts and Dockerfiles, use
-  apt-get -y
-  with
-  DEBIAN_FRONTEND=noninteractive
-  so a config prompt cannot hang the run.
-- apt upgrade
-  never removes packages, which means it can also silently hold some back; when it reports packages "kept back",
-  apt full-upgrade
-  will resolve them.
-- Removing a package does not stop its service first in every case; check with
-  systemctl status
-  (see the [systemctl cheat sheet](https://sshworkbench.com/cheatsheets/systemctl)).
-
-### Patch every server from one place
-
-SSH Workbench shows pending updates across all your servers at once and runs them over plain SSH, so a security patch is a click instead of a loop over hostnames.
-
-[Try free for 7 days](https://sshworkbench.com/#install)
+- Security patches can install themselves: sudo apt install unattended-upgrades, then sudo dpkg-reconfigure -plow unattended-upgrades. It is also the usual holder of the dpkg lock right after boot.
+- In scripts and Dockerfiles, use apt-get -y with DEBIAN_FRONTEND=noninteractive so a config prompt cannot hang the run.
+- apt upgrade never removes packages, which means it can also silently hold some back; when it reports packages "kept back", apt full-upgrade will resolve them.
+- Removing a package does not stop its service first in every case; check with systemctl status (see the [systemctl cheat sheet](https://sshworkbench.com/cheatsheets/systemctl)).
 
 ## apt FAQ
 
@@ -228,4 +229,4 @@ For a broken or interrupted install, sudo apt --fix-broken install, then sudo dp
 Advanced Package Tool. apt, apt-get, apt-cache, apt-mark, and apt-config are all front ends over the same library, which is why they share a cache and a configuration. dpkg sits underneath and does the actual unpacking of a single .deb; apt is the layer that knows about repositories, dependency resolution, and versions.
 
 ---
-Källa: https://sshworkbench.com/cheatsheets/apt
+Source: https://sshworkbench.com/cheatsheets/apt

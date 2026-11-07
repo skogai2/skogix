@@ -2,21 +2,6 @@
 
 tmux is a terminal multiplexer: one SSH connection, many windows and panes, and sessions that keep running after you disconnect. The prefix is Ctrl+b unless you remapped it. Press it, let go, then press the key.
 
-Last updated September 11, 2026
-
-On this page
-
-- [Sessions](#sessions)
-- [Windows](#windows)
-- [Panes](#panes)
-- [Copy Mode and Scrolling](#copy-mode-and-scrolling)
-- [Prefix Key and Keybindings](#prefix-key-and-keybindings)
-- [Config](#config)
-- [Status Bar](#status-bar)
-- [Plugins](#plugins)
-- [Install](#install)
-- [Gotchas](#gotchas)
-
 ## Sessions
 
 | Command | What it does |
@@ -35,13 +20,27 @@ On this page
 | tmux kill-session -a | Kill every session except the current one |
 | tmux kill-server | Kill everything |
 
-[TABLE]
+| Command | What it does |
+|---|---|
+| `tmux` | Start new unnamed session |
+| `tmux new -s dev` | Start new session named `dev` |
+| `tmux ls` | List active sessions |
+| `tmux attach -t dev` | Attach to existing session `dev` (`tmux a -t dev`) |
+| `tmux kill-session -t dev` | Terminate session `dev` |
+| `tmux kill-server` | Kill all tmux sessions and background server |
 
 ## Windows
 
 Windows are tabs. The status bar at the bottom lists them by number.
 
-[TABLE]
+| Keybinding | Action |
+|---|---|
+| `prefix c` | Create new window |
+| `prefix ,` | Rename current window |
+| `prefix n` / `prefix p` | Move to next / previous window |
+| `prefix 0..9` | Select window by number |
+| `prefix w` | Interactive visual window/session list |
+| `prefix &` | Kill current window |
 
 | Command                    | What it does                     |
 |----------------------------|----------------------------------|
@@ -56,29 +55,73 @@ Windows are tabs. The status bar at the bottom lists them by number.
 
 prefix : opens a command prompt inside tmux; the : commands below go there.
 
-[TABLE]
+| Keybinding | Action |
+|---|---|
+| `prefix %` | Split current pane horizontally (left / right) |
+| `prefix "` | Split current pane vertically (top / bottom) |
+| `prefix o` | Cycle focus to next pane |
+| `prefix ;` | Toggle to previously active pane |
+| `prefix x` | Close / kill current pane |
+| `prefix z` | Toggle pane zoom (maximize / restore) |
+| `prefix {` / `prefix }` | Swap current pane with previous / next pane |
+| `prefix Space` | Cycle through preset pane layouts |
+| `prefix q` | Briefly display pane index numbers |
 
-[TABLE]
+| CLI / Prompt Command | What it does |
+|---|---|
+| `tmux split-window -h` | Split horizontally |
+| `tmux split-window -v` | Split vertically |
+| `tmux select-pane -L/-R/-U/-D` | Focus pane to the left, right, up, down |
+| `tmux resize-pane -U 5` | Resize current pane 5 cells upward |
+| `tmux kill-pane` | Terminate active pane |
 
 ## Copy Mode and Scrolling
 
-prefix \[ enters copy mode, which is also how you scroll back. Keys depend on mode-keys: emacs by default, vi after setw -g mode-keys vi.
+prefix [ enters copy mode, which is also how you scroll back. Keys depend on mode-keys: emacs by default, vi after setw -g mode-keys vi.
 
-[TABLE]
+| Emacs Keybinding (Default) | Vi Keybinding (`mode-keys vi`) | Action |
+|---|---|---|
+| `prefix [` | `prefix [` | Enter copy mode (enables scrolling) |
+| `Page Up / Down` | `Ctrl+B / Ctrl+F` | Scroll full page up / down |
+| `Ctrl+P / Ctrl+N` | `k / j` | Move up / down by line |
+| `Ctrl+Space` | `v` or `Space` | Begin text selection |
+| `Alt+W` | `y` | Copy selection into tmux buffer |
+| `prefix ]` | `prefix ]` | Paste contents of tmux buffer |
+| `q` | `q` or `Esc` | Exit copy mode |
 
-[TABLE]
+| Emacs Keybinding (Default) | Vi Keybinding (`mode-keys vi`) | Action |
+|---|---|---|
+| `prefix [` | `prefix [` | Enter copy mode (enables scrolling) |
+| `Page Up / Down` | `Ctrl+B / Ctrl+F` | Scroll full page up / down |
+| `Ctrl+P / Ctrl+N` | `k / j` | Move up / down by line |
+| `Ctrl+Space` | `v` or `Space` | Begin text selection |
+| `Alt+W` | `y` | Copy selection into tmux buffer |
+| `prefix ]` | `prefix ]` | Paste contents of tmux buffer |
+| `q` | `q` or `Esc` | Exit copy mode |
 
 Copies land in tmux's buffer, not the system clipboard. The config below pipes them to pbcopy; on Linux use xclip -selection clipboard or wl-copy.
 
 ## Prefix Key and Keybindings
 
-[TABLE]
+| Keybinding | Default Binding | Description |
+|---|---|---|
+| Prefix Key | `Ctrl+B` | Leader key pressed before every tmux command shortcut |
+| Command Prompt | `prefix :` | Open interactive tmux command prompt |
+| Help / Keybindings | `prefix ?` | Display list of all active keybindings |
+| Detach Session | `prefix d` | Detach from tmux while leaving processes running |
+| Clock | `prefix t` | Display full-screen digital clock in active pane |
 
-[TABLE]
+| Keybinding | Default Binding | Description |
+|---|---|---|
+| Prefix Key | `Ctrl+B` | Leader key pressed before every tmux command shortcut |
+| Command Prompt | `prefix :` | Open interactive tmux command prompt |
+| Help / Keybindings | `prefix ?` | Display list of all active keybindings |
+| Detach Session | `prefix d` | Detach from tmux while leaving processes running |
+| Clock | `prefix t` | Display full-screen digital clock in active pane |
 
 ## Config
 
-The file is ~/.tmux.conf. tmux 3.1 and newer also read ~/.config/tmux/tmux.conf (or \$XDG_CONFIG_HOME/tmux/tmux.conf), and a system-wide /etc/tmux.conf loads first when it exists. Changes apply to the running server after a reload.
+The file is ~/.tmux.conf. tmux 3.1 and newer also read ~/.config/tmux/tmux.conf (or $XDG_CONFIG_HOME/tmux/tmux.conf), and a system-wide /etc/tmux.conf loads first when it exists. Changes apply to the running server after a reload.
 
 | Command | What it does |
 |----|----|
@@ -116,15 +159,19 @@ bind -T copy-mode-vi v send -X begin-selection
 bind -T copy-mode-vi y send -X copy-pipe-and-cancel "pbcopy"
 ```
 
-Copy
-
 Swap pbcopy for xclip -selection clipboard on X11 or wl-copy on Wayland.
 
 ## Status Bar
 
-The bar at the bottom is configured with set -g status-\* options, in ~/.tmux.conf or live from prefix :.
+The bar at the bottom is configured with set -g status-* options, in ~/.tmux.conf or live from prefix :.
 
-[TABLE]
+| Option | Default / Value | Description |
+|---|---|---|
+| `set -g status on` | `on` | Toggle status bar visibility (`on`/`off`) |
+| `set -g status-position` | `bottom` | Place status bar at `top` or `bottom` |
+| `set -g status-interval` | `15` | Update interval in seconds |
+| `set -g status-left` | `"[#S] "` | Information on left side (session name) |
+| `set -g status-right` | `"%H:%M %d-%b-%y"` | Information on right side (date/time, hostname) |
 
 Anything in \#{...} is a format variable (#{pane_current_path}, \#{window_index}); \#(command) runs a shell command and shows its output. Colours accept names, colour0 to colour255, or \#RRGGBB, and 256-colour styles only render once set -g default-terminal "tmux-256color" is set.
 
@@ -132,11 +179,9 @@ Anything in \#{...} is a format variable (#{pane_current_path}, \#{window_index}
 
 Most tmux plugins are installed through TPM, the tmux Plugin Manager. Clone it once:
 
-```
+```bash
 git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm
 ```
-
-Copy
 
 Then list plugins in ~/.tmux.conf, keeping the run line last:
 
@@ -149,8 +194,6 @@ set -g @plugin 'tmux-plugins/tmux-yank'
 
 run '~/.tmux/plugins/tpm/tpm'
 ```
-
-Copy
 
 | Key or command | What it does |
 |----|----|
@@ -168,55 +211,32 @@ Plugins land in ~/.tmux/plugins/, or ~/.config/tmux/plugins/ if your config live
 
 tmux is not preinstalled on macOS and is missing from most minimal images and containers.
 
-[TABLE]
+| Distribution | Command |
+|---|---|
+| Debian / Ubuntu | `sudo apt install tmux` |
+| Arch Linux | `sudo pacman -S tmux` |
+| Fedora / RHEL | `sudo dnf install tmux` |
+| macOS (Homebrew) | `brew install tmux` |
 
-Windows has no native tmux. Run it under WSL, or run it on the Linux host you connect to and let the client pass the keys through; the [PuTTY cheat sheet](https://sshworkbench.com/cheatsheets/putty) covers that side. With no root on the remote box, check for [screen](https://sshworkbench.com/cheatsheets/screen) first, since it is preinstalled more often, and fall back to building tmux from source with ./configure --prefix=\$HOME/.local (it needs libevent and ncurses headers).
+Windows has no native tmux. Run it under WSL, or run it on the Linux host you connect to and let the client pass the keys through; the [PuTTY cheat sheet](https://sshworkbench.com/cheatsheets/putty) covers that side. With no root on the remote box, check for [screen](https://sshworkbench.com/cheatsheets/screen) first, since it is preinstalled more often, and fall back to building tmux from source with ./configure --prefix=$HOME/.local (it needs libevent and ncurses headers).
 
 ## Gotchas
 
 - The prefix is a sequence, not a chord. Press Ctrl+b, release, then the key. Holding Ctrl through the whole thing sends Ctrl+c, Ctrl+d, and friends instead.
-- Copy mode copies to tmux's own buffer. Nothing reaches the system clipboard until you add a
-  copy-pipe
-  binding or turn on
-  set-clipboard
-  on a terminal that supports it.
-- A dropped SSH connection does not kill tmux. Reconnect and run
-  tmux a
-  ; if it says the session is attached,
-  tmux a -d
-  . This is the reason to start every long job inside tmux; see [ssh broken pipe](https://sshworkbench.com/fix/ssh-broken-pipe) for stopping the drops themselves.
-- With
-  mouse on
-  , the terminal's native drag-select is taken over by tmux. Hold Shift (Option in iTerm2, Fn in Terminal.app) to select with the terminal instead.
+- Copy mode copies to tmux's own buffer. Nothing reaches the system clipboard until you add a copy-pipe binding or turn on set-clipboard on a terminal that supports it.
+- A dropped SSH connection does not kill tmux. Reconnect and run tmux a; if it says the session is attached, tmux a -d. This is the reason to start every long job inside tmux; see [ssh broken pipe](https://sshworkbench.com/fix/ssh-broken-pipe) for stopping the drops themselves.
+- With mouse on, the terminal's native drag-select is taken over by tmux. Hold Shift (Option in iTerm2, Fn in Terminal.app) to select with the terminal instead.
 - Inside tmux over SSH inside another tmux, press the prefix twice to reach the inner one, or give the remote a different prefix.
-- Vim feels sluggish on Esc until
-  set -sg escape-time 10
-  is in the config.
-- Snippets using
-  bind -t vi-copy
-  are for tmux 2.3 and older. Modern tmux wants
-  bind -T copy-mode-vi ... send -X ...
-  .
-- A reboot kills the tmux server and every session in it. Dropped connections are survivable, power cycles are not; see the Plugins section for
-  tmux-resurrect
-  .
-- Coming from screen: the prefix is Ctrl+b instead of Ctrl+a, and
-  screen -r
-  is
-  tmux a
-  . The [screen cheat sheet](https://sshworkbench.com/cheatsheets/screen) has the rest of the key mapping.
-
-### Tired of typing all of this?
-
-SSH Workbench turns your servers into a dashboard over plain SSH: files, services, Docker, logs, and cron with a click, and a real terminal when you want one.
-
-[Try free for 7 days](https://sshworkbench.com/#install)
+- Vim feels sluggish on Esc until set -sg escape-time 10 is in the config.
+- Snippets using bind -t vi-copy are for tmux 2.3 and older. Modern tmux wants bind -T copy-mode-vi ... send -X ....
+- A reboot kills the tmux server and every session in it. Dropped connections are survivable, power cycles are not; see the Plugins section for tmux-resurrect.
+- Coming from screen: the prefix is Ctrl+b instead of Ctrl+a, and screen -r is tmux a. The [screen cheat sheet](https://sshworkbench.com/cheatsheets/screen) has the rest of the key mapping.
 
 ## tmux FAQ
 
 ### How do I scroll up in tmux?
 
-Press Ctrl+b then \[ to enter copy mode, scroll with PgUp, PgDn, or the arrow keys, and press q to get back to the prompt. The mouse wheel does nothing until you add set -g mouse on to ~/.tmux.conf and reload; after that the wheel scrolls and enters copy mode on its own. How far back you can go is history-limit, which defaults to 2000 lines per pane; set -g history-limit 50000 is cheap and only applies to panes created after the reload.
+Press Ctrl+b then [ to enter copy mode, scroll with PgUp, PgDn, or the arrow keys, and press q to get back to the prompt. The mouse wheel does nothing until you add set -g mouse on to ~/.tmux.conf and reload; after that the wheel scrolls and enters copy mode on its own. How far back you can go is history-limit, which defaults to 2000 lines per pane; set -g history-limit 50000 is cheap and only applies to panes created after the reload.
 
 ### How do I exit tmux without closing the session?
 
@@ -235,4 +255,4 @@ For most people, yes. tmux has real pane splitting, a scriptable command languag
 There is no native Windows build and no official port, so tmux on Windows means one of two things. Either run it inside WSL, where sudo apt install tmux works exactly as it does on Ubuntu, or run it on the Linux server you connect to and let PuTTY or Windows Terminal simply carry the keystrokes, which is what most people actually want. Git Bash bundles an MSYS2 tmux that mostly works but has redraw and clipboard quirks. If all you want is split panes on the Windows side, Windows Terminal does that itself with Alt+Shift+plus and Alt+Shift+minus, no tmux involved.
 
 ---
-Källa: https://sshworkbench.com/cheatsheets/tmux
+Source: https://sshworkbench.com/cheatsheets/tmux

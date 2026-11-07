@@ -2,30 +2,6 @@
 
 Caddy is a web server with HTTPS built in: point it at a domain and it obtains and renews the certificate on its own. This sheet collects working Caddyfile examples, from a one-line reverse proxy to Docker, wildcard certificates, and PHP, plus the syntax rules the examples rely on.
 
-Last updated September 11, 2026
-
-On this page
-
-- [Reverse Proxy](#reverse-proxy)
-- [Syntax and Comments](#syntax-and-comments)
-- [Docker](#docker)
-- [Docker Compose](#docker-compose)
-- [HTTPS and TLS](#https-and-tls)
-- [No Domain or HTTP Only](#no-domain-or-http-only)
-- [Wildcard and Cloudflare DNS](#wildcard-and-cloudflare-dns)
-- [Subdomains](#subdomains)
-- [File Server](#file-server)
-- [PHP FastCGI](#php-fastcgi)
-- [Basic Auth](#basic-auth)
-- [Rewrites and Redirects](#rewrites-and-redirects)
-- [Handle and Matchers](#handle-and-matchers)
-- [Placeholders](#placeholders)
-- [Error Pages](#error-pages)
-- [WebSockets](#websockets)
-- [Logging](#logging)
-- [Caddy Commands](#caddy-commands)
-- [Gotchas](#gotchas)
-
 ## Reverse Proxy
 
 The site address gets HTTPS automatically; reverse_proxy does the rest. Caddy sets X-Forwarded-For and passes the Host header through on its own.
@@ -33,7 +9,7 @@ The site address gets HTTPS automatically; reverse_proxy does the rest. Caddy se
 | Directive | What it does |
 |----|----|
 | reverse_proxy localhost:3000 | Send every request to one backend |
-| reverse_proxy /api/\* localhost:8080 | Proxy only requests matching a path |
+| reverse_proxy /api/* localhost:8080 | Proxy only requests matching a path |
 | reverse_proxy node1:3000 node2:3000 | Round-robin across several backends |
 | reverse_proxy https://10.0.0.5:8443 | Proxy to an upstream that speaks HTTPS |
 | lb_policy least_conn | Pick the backend with the fewest active requests |
@@ -48,8 +24,6 @@ example.com {
 }
 ```
 
-Copy
-
 Split an API off from the frontend:
 
 ```
@@ -63,8 +37,6 @@ example.com {
 }
 ```
 
-Copy
-
 Load balancing with health checks:
 
 ```
@@ -77,8 +49,6 @@ example.com {
 }
 ```
 
-Copy
-
 Caddy already sends X-Forwarded-For, X-Forwarded-Proto, and X-Forwarded-Host on every proxied request, so you rarely need to set them. Backends that expect X-Real-IP do need a line, since Caddy does not send it:
 
 ```
@@ -89,8 +59,6 @@ example.com {
 }
 ```
 
-Copy
-
 When Caddy itself sits behind another proxy or a CDN, tell it which hops to trust so the client IP is read from the incoming header instead of the connection:
 
 ```
@@ -100,8 +68,6 @@ When Caddy itself sits behind another proxy or a CDN, tell it which hops to trus
     }
 }
 ```
-
-Copy
 
 An internal upstream with a self-signed certificate:
 
@@ -115,18 +81,16 @@ example.com {
 }
 ```
 
-Copy
-
 tls_insecure_skip_verify disables certificate checks, so keep it for backends you control on a private network.
 
 ## Syntax and Comments
 
 A Caddyfile is one optional global options block followed by site blocks. Comments start with \# and run to the end of the line; there is no block comment form.
 
-```
+```bash
 # Global options come first and have no site address
 {
-    email [email protected]
+    email git@github.com
     admin off
 }
 
@@ -136,22 +100,25 @@ example.com {
 }
 ```
 
-Copy
-
-[TABLE]
+| Element | Syntax Example | Meaning |
+|---|---|---|
+| Global Options | `{ email you@example.com }` | Unnamed block at top of file for server-wide settings |
+| Site Block | `example.com { ... }` | Encapsulates routing directives for a specific domain/port |
+| Comments | `# comment text` | Full-line or trailing comment |
+| Snippet | `(mysnippet) { ... }` | Reusable configuration snippet imported via `import mysnippet` |
 
 Useful global options:
 
 | Option | What it does |
 |----|----|
-| email [\[email protected\]](https://sshworkbench.com/cdn-cgi/l/email-protection) | ACME account address for every site |
+| email git@github.com | ACME account address for every site |
 | debug | Verbose logs, including ACME failures |
 | admin off | Turn off the admin API on port 2019 |
 | admin :2019 | Move or expose the admin API |
 | auto_https off | No certificates and no HTTP to HTTPS redirect |
 | auto_https disable_redirects | Keep certificates, drop the port 80 redirect |
 | http_port 8080 | Listen somewhere other than 80 |
-| order \<directive\> before \<other\> | Change where a plugin directive runs |
+| order <directive> before <other> | Change where a plugin directive runs |
 
 Directives run in Caddy's own fixed order, not the order you wrote them. caddy fmt --overwrite Caddyfile normalizes indentation to tabs, and caddy validate --config Caddyfile checks the config without starting the server.
 
@@ -159,7 +126,7 @@ Directives run in Caddy's own fixed order, not the order you wrote them. caddy f
 
 The official image reads /etc/caddy/Caddyfile. Mount your config and a /data volume; /data holds the certificates, so losing it means re-requesting them.
 
-```
+```bash
 docker run -d --name caddy \
   -p 80:80 -p 443:443 -p 443:443/udp \
   -v ./Caddyfile:/etc/caddy/Caddyfile \
@@ -167,15 +134,11 @@ docker run -d --name caddy \
   caddy:2
 ```
 
-Copy
-
 Apply config changes without restarting the container:
 
-```
+```bash
 docker exec -w /etc/caddy caddy caddy reload
 ```
-
-Copy
 
 A custom image with a DNS plugin baked in:
 
@@ -186,8 +149,6 @@ RUN xcaddy build --with github.com/caddy-dns/cloudflare
 FROM caddy:2
 COPY --from=builder /usr/bin/caddy /usr/bin/caddy
 ```
-
-Copy
 
 The docker run flags themselves are covered in the [Docker cheat sheet](https://sshworkbench.com/cheatsheets/docker).
 
@@ -212,8 +173,6 @@ volumes:
   caddy_config:
 ```
 
-Copy
-
 Other services in the same Compose file are reachable by service name, so the Caddyfile proxies to them directly:
 
 ```
@@ -221,8 +180,6 @@ example.com {
     reverse_proxy app:3000
 }
 ```
-
-Copy
 
 The 443:443/udp mapping is for HTTP/3; Caddy enables it by default. Compose commands themselves are in the [Docker Compose cheat sheet](https://sshworkbench.com/cheatsheets/docker-compose).
 
@@ -233,7 +190,7 @@ Any site address with a domain gets a Let's Encrypt or ZeroSSL certificate autom
 | Directive | What it does |
 |----|----|
 | example.com { ... } | Automatic public certificate, renewed for you |
-| tls [\[email protected\]](https://sshworkbench.com/cdn-cgi/l/email-protection) | Set the ACME account email for expiry notices |
+| tls git@github.com | Set the ACME account email for expiry notices |
 | tls internal | Self-signed certificate from Caddy's local CA |
 | tls cert.pem key.pem | Use a certificate you already have |
 | http://example.com | Opt this one site out of HTTPS |
@@ -241,17 +198,15 @@ Any site address with a domain gets a Let's Encrypt or ZeroSSL certificate autom
 
 Set the email once globally instead of per site:
 
-```
+```bash
 {
-    email [email protected]
+    email git@github.com
 }
 
 example.com {
     reverse_proxy localhost:3000
 }
 ```
-
-Copy
 
 Use the Let's Encrypt staging CA while testing, so failures do not hit rate limits:
 
@@ -264,8 +219,6 @@ example.com {
 }
 ```
 
-Copy
-
 On your own machine, localhost as the site address gets a locally trusted certificate. Run caddy trust once so browsers accept it.
 
 ```
@@ -274,15 +227,18 @@ localhost {
 }
 ```
 
-Copy
-
 Check what a live domain is actually serving with the [SSL checker](https://sshworkbench.com/tools/ssl-checker).
 
 ## No Domain or HTTP Only
 
 Caddy only goes looking for a public certificate when the site address is a domain name. Give it a port or an IP and it serves plain HTTP without touching Let's Encrypt.
 
-[TABLE]
+| Site Address | Description |
+|---|---|
+| `:80` | Bind to all interfaces on HTTP port 80 (disables auto-TLS) |
+| `http://example.com` | Specific domain over plain HTTP without automatic TLS |
+| `localhost:8080` | Local development address on port 8080 |
+| `tls internal` | Direct Caddy to generate self-signed cert from internal local CA |
 
 A home server reachable only on the LAN, with no port forwarding and no public DNS:
 
@@ -291,8 +247,6 @@ http://192.168.1.10 {
     reverse_proxy localhost:8096
 }
 ```
-
-Copy
 
 The same host over HTTPS, using Caddy's own CA:
 
@@ -303,8 +257,6 @@ home.lan {
 }
 ```
 
-Copy
-
 Run caddy trust on the server to install that CA locally. Other machines need the root certificate from /var/lib/caddy/.local/share/caddy/pki/authorities/local/root.crt added to their own trust store, or they will show a warning.
 
 To turn off certificates and the port 80 redirect across the whole config at once:
@@ -314,8 +266,6 @@ To turn off certificates and the port 80 redirect across the whole config at onc
     auto_https off
 }
 ```
-
-Copy
 
 ## Wildcard and Cloudflare DNS
 
@@ -343,8 +293,6 @@ A wildcard certificate requires the DNS challenge, which requires a DNS provider
 }
 ```
 
-Copy
-
 One certificate covers every subdomain, and new subdomains never appear in certificate transparency logs. The handle blocks route by hostname inside the single wildcard site; abort drops requests for subdomains you have not defined.
 
 ## Subdomains
@@ -357,8 +305,6 @@ example.com, www.example.com, example.net {
 }
 ```
 
-Copy
-
 Without a wildcard, each subdomain that serves something different is its own site block with its own certificate. Caddy fetches them all.
 
 ```
@@ -370,8 +316,6 @@ api.example.com {
     reverse_proxy localhost:8080
 }
 ```
-
-Copy
 
 Share settings between blocks with a snippet:
 
@@ -392,11 +336,9 @@ api.example.com {
 }
 ```
 
-Copy
-
 ## File Server
 
-file_server is off by default; root sets where it serves from. The \* after root is a path matcher meaning all requests.
+file_server is off by default; root sets where it serves from. The * after root is a path matcher meaning all requests.
 
 ```
 example.com {
@@ -406,8 +348,6 @@ example.com {
 }
 ```
 
-Copy
-
 A directory listing for sharing files:
 
 ```
@@ -416,8 +356,6 @@ files.example.com {
     file_server browse
 }
 ```
-
-Copy
 
 A single-page app, where every unknown path falls back to index.html:
 
@@ -429,8 +367,6 @@ app.example.com {
     file_server
 }
 ```
-
-Copy
 
 ## PHP FastCGI
 
@@ -445,15 +381,11 @@ example.com {
 }
 ```
 
-Copy
-
 For PHP-FPM listening on TCP instead of a socket:
 
 ```
 php_fastcgi 127.0.0.1:9000
 ```
-
-Copy
 
 The socket path must match your PHP version; check it with ls /run/php/.
 
@@ -470,8 +402,6 @@ example.com {
 }
 ```
 
-Copy
-
 That hash is the Caddy docs example for the password hiccup; replace it with your own. Protect only part of a site with a path matcher:
 
 ```
@@ -482,8 +412,6 @@ example.com {
     reverse_proxy localhost:3000
 }
 ```
-
-Copy
 
 ## Rewrites and Redirects
 
@@ -509,8 +437,6 @@ example.com {
 }
 ```
 
-Copy
-
 ## Handle and Matchers
 
 Named matchers start with @ and can combine host, path, header, and method conditions. handle blocks are mutually exclusive: the first matching block wins, so put specific routes before the catch-all.
@@ -534,8 +460,6 @@ example.com {
 }
 ```
 
-Copy
-
 handle_path behaves like handle but strips the matched prefix, so the backend above sees /users, not /api/users.
 
 Caddy runs directives in a fixed order regardless of how you wrote them. When two directives must run in a specific sequence, wrap them in route, which keeps your order and, unlike handle, is not mutually exclusive with its siblings:
@@ -550,23 +474,25 @@ example.com {
 }
 ```
 
-Copy
-
 ## Placeholders
 
 Placeholders are {...} values Caddy fills in per request. They work in most directive arguments, including respond, redir, header, log, and reverse_proxy header lines.
 
-[TABLE]
+| Caddy Placeholder | Nginx Equivalent | Description |
+|---|---|---|
+| `{http.request.uri}` | `$request_uri` | Full requested URI |
+| `{http.request.host}` | `$host` | Hostname from request |
+| `{http.request.method}` | `$request_method` | HTTP method (GET, POST, etc.) |
+| `{env.VAR_NAME}` | `$ENV_VAR` | Value of environment variable |
+| `{http.request.header.Header-Name}` | `$http_header_name` | Custom HTTP request header value |
 
-{env.VAR} and {\$VAR} are not the same. {\$VAR} is textual substitution done while the Caddyfile is parsed, so it can appear anywhere, even inside a site address. {env.VAR} is looked up when the request or the certificate is handled, so it only works where Caddy supports placeholders.
+{env.VAR} and {$VAR} are not the same. {$VAR} is textual substitution done while the Caddyfile is parsed, so it can appear anywhere, even inside a site address. {env.VAR} is looked up when the request or the certificate is handled, so it only works where Caddy supports placeholders.
 
 ```
 {$SITE_ADDRESS} {
     reverse_proxy localhost:{$APP_PORT}
 }
 ```
-
-Copy
 
 ## Error Pages
 
@@ -594,8 +520,6 @@ example.com {
 }
 ```
 
-Copy
-
 A single page for every error, instead of one file per status code:
 
 ```
@@ -603,8 +527,6 @@ handle_errors {
     respond "{err.status_code} {err.status_text}" {err.status_code}
 }
 ```
-
-Copy
 
 The difference matters: respond 403 sends the status straight to the client and handle_errors never sees it, while error 403 hands control to handle_errors so your styled page renders. abort drops the connection without answering at all.
 
@@ -623,8 +545,6 @@ example.com {
 }
 ```
 
-Copy
-
 ## Logging
 
 Caddy logs its own runtime messages to stderr, but per-site access logs are off until you add log. The default format is JSON; format console is easier to read by eye.
@@ -641,8 +561,6 @@ example.com {
 }
 ```
 
-Copy
-
 Verbose output for debugging certificate problems goes in the global options:
 
 ```
@@ -651,37 +569,26 @@ Verbose output for debugging certificate problems goes in the global options:
 }
 ```
 
-Copy
-
 ## Caddy Commands
 
-[TABLE]
+| Command | What it does |
+|---|---|
+| `caddy run` | Run Caddy in foreground (standard for Docker / systemd) |
+| `caddy start` | Start Caddy in background |
+| `caddy reload` | Reload configuration without downtime |
+| `caddy stop` | Stop background Caddy daemon |
+| `caddy fmt --overwrite` | Format Caddyfile with standard indentation |
+| `caddy validate` | Test Caddyfile syntax without running server |
 
 ## Gotchas
 
-- basicauth
-  became
-  basic_auth
-  in Caddy 2.8. The old name still parses, but new configs should use the underscore form.
-- In Docker, always mount a volume at
-  /data
-  . Without it, every container recreate re-requests certificates and can hit Let's Encrypt rate limits within a day.
-- caddy reload
-  run from the wrong directory silently reloads nothing useful. Pass
-  --config /etc/caddy/Caddyfile
-  when in doubt.
+- basicauth became basic_auth in Caddy 2.8. The old name still parses, but new configs should use the underscore form.
+- In Docker, always mount a volume at /data. Without it, every container recreate re-requests certificates and can hit Let's Encrypt rate limits within a day.
+- caddy reload run from the wrong directory silently reloads nothing useful. Pass --config /etc/caddy/Caddyfile when in doubt.
 - Behind Cloudflare's orange-cloud proxy, the HTTP ACME challenge never reaches your server. Use the DNS challenge or disable the proxy while issuing.
-- A site address with no scheme serves HTTPS and redirects port 80. Prefix
-  http://
-  for a plain HTTP site instead of fighting the redirect.
+- A site address with no scheme serves HTTPS and redirects port 80. Prefix http:// for a plain HTTP site instead of fighting the redirect.
 - HTTP/3 is on by default. If browsers report flaky connections, check UDP 443 through the firewall, not just TCP.
 - Migrating an existing nginx config? The [nginx to Caddy converter](https://sshworkbench.com/tools/nginx-to-caddy) translates server blocks to Caddyfile syntax.
-
-### Config changes without the white knuckles
-
-SSH Workbench lets you browse and edit configs, tail logs, and restart the service from one place over plain SSH, so a reload never means six terminal tabs.
-
-[Try free for 7 days](https://sshworkbench.com/#install)
 
 ## Caddy FAQ
 
@@ -706,4 +613,4 @@ caddy fmt --overwrite Caddyfile rewrites the file in place with Caddy's own conv
 Run caddy reload from the directory that holds the Caddyfile, or caddy reload --config /etc/caddy/Caddyfile from anywhere. Caddy applies the new config with zero downtime, and if the file has an error it keeps running on the old config instead of dying. On Debian and Ubuntu package installs, systemctl reload caddy does the same thing. In Docker, run docker exec -w /etc/caddy caddy caddy reload after editing the mounted file; restarting the container also works but drops open connections.
 
 ---
-Källa: https://sshworkbench.com/cheatsheets/caddy
+Source: https://sshworkbench.com/cheatsheets/caddy
