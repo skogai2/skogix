@@ -5,7 +5,8 @@
     "ENABLE_CLAUDEAI_MCP_SERVERS": "false",
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
     "CLAUDE_CODE_DISABLE_POLICY_SKILLS": "1",
-    "CLAUDE_CODE_DISABLE_OFFICIAL_MARKETPLACE_AUTOINSTALL": "1"
+    "CLAUDE_CODE_DISABLE_OFFICIAL_MARKETPLACE_AUTOINSTALL": "1",
+    "OLLAMA_MODEL": "gemma4"
   },
   "permissions": {
     "defaultMode": "auto"
@@ -103,13 +104,21 @@
     "vv-harness@vv-harness-marketplace": true,
     "cloudflare@synced": false,
     "skogai-core@skogai-marketplace": true,
-    "skogai-council@skogai-marketplace": true
+    "skogai-council@skogai-marketplace": true,
+    "council@skogai-council-marketplace": true
   },
   "extraKnownMarketplaces": {
     "vv-harness-marketplace": {
       "source": {
         "source": "github",
         "repo": "skogai2/skogharness"
+      },
+      "autoUpdate": true
+    },
+    "skogai-council-marketplace": {
+      "source": {
+        "source": "directory",
+        "path": "/home/skogix/.local/src/skogai-council"
       },
       "autoUpdate": true
     }
@@ -124,6 +133,7 @@
   },
   "timeFormat": "24-hour",
   "skipDangerousModePermissionPrompt": true,
+  "skipWorkflowUsageWarning": true,
   "theme": "dark-daltonized",
   "editorMode": "vim",
   "preferredNotifChannel": "auto",
