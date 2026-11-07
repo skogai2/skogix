@@ -78,3 +78,27 @@ Tell me which one you want, or which new provider to add. Each new provider is o
 - Bash: `time (OLLAMA_MODEL=gemma4 timeout 300 ./scripts/providers/ollama.sh "Say hi in three words" 2>&1 | tail -3)`
 - Bash: `cd /skogai && tmp=$(mktemp) && jq --indent 2 '.env.OLLAMA_MODEL = "gemma4"' claude/settings.json > "$tmp" && mv "$tmp" c…`
 
+## 2026-11-07 10:44 · turn 064c77ad
+
+**User**
+
+> i added it to /skogai/claude/shell/.zshrc 
+>
+> codex, claude, agy
+>
+> should be runnable
+
+**Assistant**
+
+All three now work. I sent one question through each provider script (`codex`, `antigravity`, `claude-cli`) and each one answered and exited 0.
+
+- **Restart needed:** this Claude session's shell started before your `.zshrc` edit and still has the old `PATH`, so I tested in a fresh zsh that loads the new file. The council here won't find these CLIs until you restart Claude Code.
+- **`claude-cli` only joins when named:** the council doesn't pick it up on its own. Add it with `--providers` or `COUNCIL_PROVIDERS`. `codex` and `antigravity` are picked up automatically now.
+- **Uncommitted:** your `.zshrc` change and my `OLLAMA_MODEL` line in `claude/settings.json` are both uncommitted. If you commit, consider writing `$HOME/.local/bin` instead of `/home/skogix/.local/bin`, since the next line of that file already uses `$HOME`.
+
+**Actions**
+
+- Bash: `rtk git diff claude/shell/.zshrc; echo "PATH=$PATH"; for b in codex claude agy antigravity; do printf '%s: ' $b; command…`
+- Bash: `ZDOTDIR=/skogai/claude/shell zsh -ic 'for b in codex claude agy antigravity; do printf "%s: " $b; whence -p $b || echo m…`
+- Bash: `cd /skogai/claude/plugins/cache/skogai-marketplace/skogai-council/2026.10.13 && ZDOTDIR=/skogai/claude/shell zsh -ic '`
+
