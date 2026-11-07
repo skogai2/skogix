@@ -7,13 +7,16 @@
     "CLAUDE_CODE_DISABLE_POLICY_SKILLS": "1",
     "CLAUDE_CODE_DISABLE_OFFICIAL_MARKETPLACE_AUTOINSTALL": "1"
   },
+  "permissions": {
+    "defaultMode": "auto"
+  },
   "hooks": {
     "SessionStart": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "/home/skogix/.local/bin/collie beacon emit # collie-beacon v1",
+            "command": "/home/skogix/.config/herdr/plugins/github-installations/herdr.collie-1edf0e1e987e/20386-0/checkout/bin/collie beacon emit # collie-beacon v1",
             "timeout": 10
           }
         ]
@@ -34,7 +37,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/home/skogix/.local/bin/collie beacon emit # collie-beacon v1",
+            "command": "/home/skogix/.config/herdr/plugins/github-installations/herdr.collie-1edf0e1e987e/20386-0/checkout/bin/collie beacon emit # collie-beacon v1",
             "timeout": 10
           }
         ]
@@ -45,7 +48,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/home/skogix/.local/bin/collie beacon emit # collie-beacon v1",
+            "command": "/home/skogix/.config/herdr/plugins/github-installations/herdr.collie-1edf0e1e987e/20386-0/checkout/bin/collie beacon emit # collie-beacon v1",
             "timeout": 10
           }
         ]
@@ -56,7 +59,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/home/skogix/.local/bin/collie beacon emit # collie-beacon v1",
+            "command": "/home/skogix/.config/herdr/plugins/github-installations/herdr.collie-1edf0e1e987e/20386-0/checkout/bin/collie beacon emit # collie-beacon v1",
             "timeout": 10
           }
         ]
@@ -67,7 +70,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/home/skogix/.local/bin/collie beacon emit # collie-beacon v1",
+            "command": "/home/skogix/.config/herdr/plugins/github-installations/herdr.collie-1edf0e1e987e/20386-0/checkout/bin/collie beacon emit # collie-beacon v1",
             "timeout": 10
           }
         ]
@@ -88,32 +91,30 @@
   "worktree": {
     "baseRef": "head"
   },
+  "enableWorkflows": true,
   "statusLine": {
     "type": "command",
-    "command": "/home/skogix/.config/herdr/plugins/github/herdr.collie-1edf0e1e987e/bin/collie beacon statusline d3QgbGlzdCBzdGF0dXNsaW5lIC0tZm9ybWF0PWNsYXVkZS1jb2Rl # collie-statusline v1"
+    "command": "/home/skogix/.config/herdr/plugins/github-installations/herdr.collie-1edf0e1e987e/20386-0/checkout/bin/collie beacon statusline d3QgbGlzdCBzdGF0dXNsaW5lIC0tZm9ybWF0PWNsYXVkZS1jb2Rl # collie-statusline v1"
   },
   "enabledPlugins": {
-    "code-docs-lookup@skogix": true,
     "loadout@synced": false,
     "skogai-core@synced": false,
     "open-knowledge-plugin@synced": false,
-    "vv-harness@vv-harness-marketplace": true
+    "vv-harness@vv-harness-marketplace": true,
+    "cloudflare@synced": false,
+    "skogai-core@skogai-marketplace": true,
+    "skogai-council@skogai-marketplace": true
   },
   "extraKnownMarketplaces": {
-    "skogix": {
-      "source": {
-        "source": "directory",
-        "path": "/skogai"
-      },
-      "autoUpdate": true
-    },
     "vv-harness-marketplace": {
       "source": {
         "source": "github",
         "repo": "skogai2/skogharness"
-      }
+      },
+      "autoUpdate": true
     }
   },
+  "outputStyle": "Proactive",
   "pluginConfigs": {
     "cc-plugin-agents-md@builtin": {
       "options": {
@@ -131,5 +132,42 @@
   "remoteControlAtStartup": true,
   "crossSessionInbound": "accept",
   "inputNeededNotifEnabled": true,
-  "agentPushNotifEnabled": true
+  "agentPushNotifEnabled": true,
+  "autoMode": {
+    "environment": [
+      "### Org-wide",
+      "**Organization**: None configured",
+      "**Cloud provider(s)**: None configured",
+      "**Repository visibility**: PUBLIC — skogai2/skogai (github.com/skogai2/skogai.git), the only remote for this repo. Any push here is publishing.",
+      "**Internal sharing / snippet hosting**: None configured — treat public paste/gist services as outside the trust boundary",
+      "**Secrets management**: None configured",
+      "**Default / protected branches**: Default branch `master`; no branch protection rules or rulesets listed via gh for skogai2/skogai",
+      "**CI/CD deploy targets**: None configured",
+      "**Network posture**: None configured",
+      "**Host containment**: None configured — assume Claude Code runs on an ordinary developer machine with open internet",
+      "**Source control**: The trusted repo (skogai2/skogai, public) and its remote only — no additional orgs configured",
+      "**Trusted internal domains**: None configured",
+      "**Trusted cloud buckets**: None configured",
+      "**Key internal services**: None configured",
+      "**Internal package registry**: None configured",
+      "**Sensitive data locations & audiences**: .skogai/memory/claude-tool-allowlist.md, .skogai/memory/secrets-burned-on-contact.md — any file or store holding personal data, confidential business data, credentials, regulated data, or similarly sensitive material; share only with audiences cleared at the [named+specifics] bar",
+      "**Data retention / declassification**: None configured",
+      "**Sensitive remote targets**: any namespace, host, or container whose name carries `prod` or `production` as a whole word or name segment",
+      "**Protected deployment namespaces / environments**: None configured — fall back to the Sensitive remote targets heuristic",
+      "**Protected IaC scopes**: IAM, RBAC, networking, quota, and node-pool resources; anything whose name or tag carries `prod` or `production` as a whole word or name segment",
+      "**Repository visibility**: PUBLIC — skogai2/skogix (github.com/skogai2/skogix.git), the only remote for this repo. Any push here is publishing.",
+      "**Default / protected branches**: Default branch `master`; no branch protection rules or rulesets listed via gh for skogai2/skogix",
+      "**Host containment**: None configured — assume Claude Code runs on an ordinary developer machine or CI runner with open internet",
+      "**Source control**: The trusted repo (skogai2/skogix, public) and its remote only — no additional orgs configured",
+      "**Sensitive data locations & audiences**: any file or store holding personal data, confidential business data, credentials, regulated data, or similarly sensitive material; preserve exact handles when known and share only with audiences cleared at the [named+specifics] bar",
+      "**Sensitive remote targets**: any namespace, host, or container whose name carries `prod` or `production` as a whole word or name segment (hyphen/underscore/dot-delimited)",
+      "### User-specific",
+      "**Primary use of Claude Code**: software development",
+      "**Trusted repo**: /home/skogix/skogai (skogai2/skogai, public repo — only this repo's own work should be pushed there; content ported from outside this session's repo is not its own work)",
+      "**Org-specific CLIs**: None configured — herdr, sp, hk, mise, codex, rtk, yq seen in this project's transcripts as routine tooling but no org affiliation established",
+      "routine under skogix/ prefix: none established — no evidence of a dedicated user-prefix workflow beyond the trusted repo path",
+      "**Trusted repo**: this repo's working directory (checked out under a herdr worktree) and its remote skogai2/skogix (public) — only this repo's own work should be pushed there; content ported, repointed, or first read from outside this session's repo is not its own work",
+      "**Org-specific CLIs**: None configured — herdr, sp, hk, mise, codex, rtk, yq, argc, collie, pitchfork, omarchy, wt, aube, communique, apm seen in shell history / this project's tooling as routine but no org affiliation established"
+    ]
+  }
 }
