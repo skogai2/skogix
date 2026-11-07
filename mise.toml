@@ -12,6 +12,7 @@ command = "/skogai/bin/claude"
 command = "/skogai/bin/agy"
 
 [tools]
+hk = { version = "latest", workflow = "release.yml" }
 shellcheck = "latest"
 shellharden = "latest"
 shfmt = "latest"
