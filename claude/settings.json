@@ -105,7 +105,8 @@
     "cloudflare@synced": false,
     "skogai-core@skogai-marketplace": true,
     "skogai-council@skogai-marketplace": true,
-    "council@skogai-council-marketplace": true
+    "council@skogai-council-marketplace": true,
+    "graft@graft": true
   },
   "extraKnownMarketplaces": {
     "vv-harness-marketplace": {
@@ -121,6 +122,12 @@
         "path": "/home/skogix/.local/src/skogai-council"
       },
       "autoUpdate": true
+    },
+    "graft": {
+      "source": {
+        "source": "github",
+        "repo": "AEndrix03/Graft"
+      }
     }
   },
   "outputStyle": "Proactive",
