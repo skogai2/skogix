@@ -11,6 +11,9 @@
   "permissions": {
     "defaultMode": "auto"
   },
+  "skillOverrides": {
+    "collie-walky-talky": "off"
+  },
   "hooks": {
     "SessionStart": [
       {
@@ -76,17 +79,6 @@
           }
         ]
       }
-    ],
-    "PreToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "rtk hook claude"
-          }
-        ]
-      }
     ]
   },
   "worktree": {
@@ -101,12 +93,13 @@
     "loadout@synced": false,
     "skogai-core@synced": false,
     "open-knowledge-plugin@synced": false,
-    "vv-harness@vv-harness-marketplace": true,
+    "vv-harness@vv-harness-marketplace": false,
     "cloudflare@synced": false,
     "skogai-core@skogai-marketplace": true,
-    "skogai-council@skogai-marketplace": true,
-    "council@skogai-council-marketplace": true,
-    "graft@graft": true
+    "council@skogai-council-marketplace": false,
+    "cc-plugin-diff@builtin": true,
+    "cloudflare@cloudflare": false,
+    "bitwize-music@bitwize-music": false
   },
   "extraKnownMarketplaces": {
     "vv-harness-marketplace": {
@@ -123,10 +116,10 @@
       },
       "autoUpdate": true
     },
-    "graft": {
+    "bitwize-music": {
       "source": {
-        "source": "github",
-        "repo": "AEndrix03/Graft"
+        "source": "directory",
+        "path": "/home/skogix/skogai-pop"
       }
     }
   },
